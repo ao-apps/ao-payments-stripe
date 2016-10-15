@@ -64,7 +64,7 @@ along with ao-credit-cards-stripe.  If not, see <http://www.gnu.org/licenses />.
 	<a target="_top" href="https://www.aoindustries.com/ao-credit-cards/">AO Credit Cards</a>
 	/ <a target="_top" href="https://www.aoindustries.com/ao-credit-cards/stripe/">Stripe</a></h1>
 	<p style="margin-left: 1em; margin-right: 1em">
-		Provider for the <a target="_top" href="https://stripe.com/">Stripe</a>.
+		Provider for <a target="_top" href="https://stripe.com/">Stripe</a>.
 	</p>
 	<div style="float:left; margin: 0 1em">
 		<h2 style="margin-top: 0em">Project Links</h2>
