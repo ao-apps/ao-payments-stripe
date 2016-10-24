@@ -38,8 +38,6 @@ along with ao-credit-cards-stripe.  If not, see <http://www.gnu.org/licenses />.
 	<properties>
 		<bookPath>/${project.parent.artifactId}/stripe</bookPath>
 		<shortTitle>Stripe</shortTitle>
-		<javadoc.breadcrumbs><![CDATA[<a target="_top" href="${project.parent.url}">${project.parent.name}</a>
-/ <a target="_top" href="${project.url}">${shortTitle}</a>]]></javadoc.breadcrumbs>
 		<description.html><![CDATA[Provider for <a target="_top" href="https://stripe.com/">Stripe</a>.]]></description.html>
 	</properties>
 
