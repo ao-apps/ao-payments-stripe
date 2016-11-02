@@ -36,6 +36,7 @@ along with ao-credit-cards-stripe.  If not, see <http://www.gnu.org/licenses />.
 		shortTitle="Changelog"
 		tocLevels="1"
 		datePublished="2016-10-29T19:08:07-0500"
+		dateModified="2016-11-02T01:09:13-0500"
 	>
 		<!-- The current snapshot, unreleased version -->
 		<c:if test="${fn:endsWith('@{project.version}', '-SNAPSHOT')}">
@@ -50,6 +51,7 @@ along with ao-credit-cards-stripe.  If not, see <http://www.gnu.org/licenses />.
 					<li>New <core:link book="/ao-oss-parent" page="/index.jspx" /> POM to simplify <code>pom.xml</code> files.</li>
 					<li>Project documentation moved to per-project book in <ao:a href="https://semanticcms.com/">SemanticCMS</ao:a> format.</li>
 					<li>Added changelog as top-level project link.</li>
+					<li>Reverted dependency to <ao:a href="http://search.maven.org/#artifactdetails|com.stripe|stripe-java|2.10.2|jar">com.stripe:stripe-java:2.10.2</ao:a> pending additional testing of the 3.* release.</li>
 				</ul>
 			</changelog:release>
 		</c:if>
