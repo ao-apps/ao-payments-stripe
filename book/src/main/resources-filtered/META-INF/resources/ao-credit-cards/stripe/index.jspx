@@ -38,7 +38,7 @@ along with ao-credit-cards-stripe.  If not, see <http://www.gnu.org/licenses />.
 		<core:child page="changelog.jspx" />
 		<core:child page="apidocs/index.jspx" />
 		<p>
-			@{description.html}
+			Provider for <ao:a href="https://stripe.com/">Stripe</ao:a>.
 		</p>
 		<section:section label="Project Links">
 			<ul>
