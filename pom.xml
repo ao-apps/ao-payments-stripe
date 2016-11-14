@@ -26,8 +26,9 @@ along with ao-credit-cards-stripe.  If not, see <http://www.gnu.org/licenses />.
 
 	<parent>
 		<groupId>com.aoindustries</groupId>
-		<artifactId>ao-credit-cards</artifactId>
-		<version>1.0.2-SNAPSHOT</version>
+		<artifactId>ao-oss-parent</artifactId>
+		<version>1.0.0-SNAPSHOT</version>
+		<relativePath>../../ao-oss-parent/pom.xml</relativePath>
 	</parent>
 
 	<groupId>com.aoindustries</groupId>
@@ -36,12 +37,14 @@ along with ao-credit-cards-stripe.  If not, see <http://www.gnu.org/licenses />.
 	<packaging>jar</packaging>
 
 	<properties>
+		<javadoc.breadcrumbs><![CDATA[<a target="_top" href="https://aoindustries.com/ao-credit-cards/">AO Credit Cards</a>
+/ <a target="_top" href="${project.url}">${shortTitle}</a>]]></javadoc.breadcrumbs>
 		<shortTitle>Stripe</shortTitle>
 		<description.html><![CDATA[Provider for <a target="_top" href="https://stripe.com/">Stripe</a>.]]></description.html>
 	</properties>
 
 	<name>AO Credit Cards Stripe</name>
-	<url>https://aoindustries.com/${project.parent.artifactId}/stripe/</url>
+	<url>https://aoindustries.com/ao-credit-cards/stripe/</url>
 	<description>Provider for Stripe.</description>
 	<inceptionYear>2015</inceptionYear>
 
