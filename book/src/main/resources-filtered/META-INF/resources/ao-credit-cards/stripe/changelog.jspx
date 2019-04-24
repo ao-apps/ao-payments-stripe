@@ -55,6 +55,20 @@ along with ao-credit-cards-stripe.  If not, see <http://www.gnu.org/licenses />.
 			>
 				<ul>
 					<li>Minimum Java version changed from 1.6 to 1.7.</li>
+					<!-- TODO: Before next production release:
+					<li>Getting updated card details during payment processing for when Stripe has a new card on file automatically.</li>
+					<li>Supporting callbacks to get notified by Stripe when new tokenized card is updated.</li>
+					<li>
+						Maybe store card type instead of first-four digits, since only card type returned by Stripe when card updated.
+						Alternatively, store some masked-out default value when not known, like 4XXX for Visa.
+					</li>
+					<li>
+						Support locally stored encrypted version of the cards, too?
+						These values would not be updated completely as new card information is available on tokenized cards,
+						but can give the API user a mechanism to switch providers.  Using GPG, with the private key never
+						on the server, and ideally kept safe completely offline, this should be fairly safe.
+					</li>
+					-->
 				</ul>
 			</changelog:release>
 		</c:if>
