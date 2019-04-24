@@ -1,6 +1,6 @@
 /*
  * ao-credit-cards - Credit card processing API supporting multiple payment gateways.
- * Copyright (C) 2015, 2016  AO Industries, Inc.
+ * Copyright (C) 2015, 2016, 2019  AO Industries, Inc.
  *     support@aoindustries.com
  *     7262 Bull Pen Cir
  *     Mobile, AL 36695
@@ -34,7 +34,6 @@ import com.aoindustries.creditcards.TransactionRequest;
 import com.aoindustries.creditcards.TransactionResult;
 import com.aoindustries.creditcards.VoidResult;
 import com.aoindustries.io.LocalizedIOException;
-import com.aoindustries.lang.NotImplementedException;
 import com.stripe.exception.APIConnectionException;
 import com.stripe.exception.APIException;
 import com.stripe.exception.AuthenticationException;
@@ -172,7 +171,7 @@ public class Stripe implements MerchantServicesProvider {
 
 	/** https://stripe.com/docs/api#metadata */
 	private static Map<String,Object> makeMetadata(CreditCard creditCard, boolean update) {
-		Map<String,Object> metadata = new LinkedHashMap<String,Object>();
+		Map<String,Object> metadata = new LinkedHashMap<>();
 		addMetaData(update, metadata, "company_name", creditCard.getCompanyName(), true);
 		addMetaData(update, metadata, "phone", creditCard.getPhone(), true);
 		addMetaData(update, metadata, "fax", creditCard.getFax(), true);
@@ -238,7 +237,7 @@ public class Stripe implements MerchantServicesProvider {
 		short expirationYear,
 		String cardCode
 	) {
-		Map<String,Object> cardParams = new HashMap<String,Object>();
+		Map<String,Object> cardParams = new HashMap<>();
 		addParam(update, cardParams, "number", CreditCard.numbersOnly(cardNumber));
 		addParam(update, cardParams, "exp_month", expirationMonth);
 		addParam(update, cardParams, "exp_year", expirationYear);
@@ -260,7 +259,7 @@ public class Stripe implements MerchantServicesProvider {
 
 	/** https://stripe.com/docs/api#create_charge */
 	private static Map<String,Object> makeShippingAddressParams(TransactionRequest transactionRequest, boolean update) {
-		Map<String,Object> shippingAddressParams = new HashMap<String,Object>();
+		Map<String,Object> shippingAddressParams = new HashMap<>();
 		addParam(update, shippingAddressParams, "line1", transactionRequest.getShippingStreetAddress1());
 		addParam(update, shippingAddressParams, "line2", transactionRequest.getShippingStreetAddress2());
 		addParam(update, shippingAddressParams, "city", transactionRequest.getShippingCity());
@@ -272,7 +271,7 @@ public class Stripe implements MerchantServicesProvider {
 
 	/** https://stripe.com/docs/api#create_charge */
 	private static Map<String,Object> makeShippingParams(TransactionRequest transactionRequest, CreditCard creditCard, boolean update) {
-		Map<String,Object> shippingParams = new HashMap<String,Object>();
+		Map<String,Object> shippingParams = new HashMap<>();
 		addParam(update, shippingParams, "address", makeShippingAddressParams(transactionRequest, update));
 		addParam(update, shippingParams, "name", CreditCard.getFullName(transactionRequest.getShippingFirstName(), transactionRequest.getShippingLastName()));
 		// Phone cannot be in the shipping by itself
@@ -471,7 +470,7 @@ public class Stripe implements MerchantServicesProvider {
 		BigInteger amount = totalAmount.scaleByPowerOfTen(currencyDigits).toBigIntegerExact();
 		// Create the Charge
 		// https://stripe.com/docs/api#create_charge
-		Map<String,Object> chargeParams = new HashMap<String,Object>();
+		Map<String,Object> chargeParams = new HashMap<>();
 		addParam(false, chargeParams, "amount", amount);
 		addParam(false, chargeParams, "currency", currency.getCurrencyCode());
 		if(creditCard.getProviderUniqueId() != null) {
@@ -689,13 +688,15 @@ public class Stripe implements MerchantServicesProvider {
 	}
 
 	@Override
+	@SuppressWarnings("deprecation")
 	public VoidResult voidTransaction(Transaction transaction) {
-		throw new NotImplementedException();
+		throw new com.aoindustries.lang.NotImplementedException();
 	}
 
 	@Override
+	@SuppressWarnings("deprecation")
 	public CreditResult credit(TransactionRequest transactionRequest, CreditCard creditCard) {
-		throw new NotImplementedException();
+		throw new com.aoindustries.lang.NotImplementedException();
 	}
 
 	@Override
@@ -706,7 +707,7 @@ public class Stripe implements MerchantServicesProvider {
 	@Override
 	public String storeCreditCard(CreditCard creditCard) throws IOException {
 		// Create the Customer
-		Map<String,Object> customerParams = new HashMap<String,Object>();
+		Map<String,Object> customerParams = new HashMap<>();
 		addParam(false, customerParams, "card", makeCardParams(creditCard, false));
 		addCustomerParams(creditCard, false, customerParams);
 		// Make API call
@@ -723,10 +724,10 @@ public class Stripe implements MerchantServicesProvider {
 	@Override
 	public void updateCreditCard(CreditCard creditCard) throws IOException {
 		// Update the Customer
-		Map<String,Object> updateCustomerParams = new HashMap<String,Object>();
+		Map<String,Object> updateCustomerParams = new HashMap<>();
 		addCustomerParams(creditCard, true, updateCustomerParams);
 		// Update the default Card
-		Map<String,Object> updateCardParams = new HashMap<String,Object>();
+		Map<String,Object> updateCardParams = new HashMap<>();
 		addCardParams(creditCard, true, updateCardParams);
 		try {
 			Customer customer = Customer.retrieve(creditCard.getProviderUniqueId(), options);
@@ -759,7 +760,7 @@ public class Stripe implements MerchantServicesProvider {
 			expirationYear,
 			cardCode!=null ? CreditCard.numbersOnly(cardCode) : creditCard.getCardCode()
 		);
-		Map<String,Object> updateParams = new HashMap<String,Object>();
+		Map<String,Object> updateParams = new HashMap<>();
 		addParam(true, updateParams, "card", cardParams);
 		try {
 			Customer customer = Customer.retrieve(creditCard.getProviderUniqueId(), options);
@@ -778,7 +779,7 @@ public class Stripe implements MerchantServicesProvider {
 		short expirationYear
 	) throws IOException {
 		// Update the default Card
-		Map<String,Object> updateParams = new HashMap<String,Object>();
+		Map<String,Object> updateParams = new HashMap<>();
 		addParam(true, updateParams, "exp_month", expirationMonth);
 		addParam(true, updateParams, "exp_year", expirationYear);
 		try {
