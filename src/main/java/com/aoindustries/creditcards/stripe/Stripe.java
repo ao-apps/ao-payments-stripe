@@ -59,18 +59,24 @@ import com.stripe.model.StripeError;
 import com.stripe.model.oauth.OAuthError;
 import com.stripe.net.RequestOptions;
 import com.stripe.param.CardUpdateOnCustomerParams;
+import com.stripe.param.CustomerCreateParams;
 import com.stripe.param.CustomerUpdateParams;
+import com.stripe.param.PaymentIntentCaptureParams;
+import com.stripe.param.PaymentIntentCreateParams;
+import com.stripe.param.PaymentMethodAttachParams;
+import com.stripe.param.PaymentMethodCreateParams;
 import com.stripe.param.PaymentMethodListParams;
+import com.stripe.param.PaymentMethodUpdateParams;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.Collections;
 import java.util.Currency;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Consumer;
 
 /**
  * Provider for Stripe<br>
@@ -159,6 +165,30 @@ public class Stripe implements MerchantServicesProvider {
 	 * Adds a trimmed parameter to a map if the value is non-null and not empty after trimming.
 	 *
 	 * @param update  The parameter will always be added, even if null, to update an existing object
+	 *
+	 * @return  {@code true} when the parameter was set, even if set to {@code null}.
+	 *          {@code false otherwise}.
+	 */
+	private static boolean addParam(boolean update, Consumer<String> params, String value) {
+		if(value != null) {
+			value = value.trim();
+			if(!value.isEmpty()) {
+				params.accept(value);
+				return true;
+			}
+		}
+		if(update) {
+			params.accept(null);
+			return true;
+		} else {
+			return false;
+		}
+	}
+
+	/**
+	 * Adds a trimmed parameter to a map if the value is non-null and not empty after trimming.
+	 *
+	 * @param update  The parameter will always be added, even if null, to update an existing object
 	 */
 	private static void addParam(boolean update, Map<String,Object> params, String name, String value) {
 		if(value != null) {
@@ -175,6 +205,27 @@ public class Stripe implements MerchantServicesProvider {
 	 * Adds a parameter to a map if the value is non-null.
 	 *
 	 * @param update  The parameter will always be added, even if null, to update an existing object
+	 *
+	 * @return  {@code true} when the parameter was set, even if set to {@code null}.
+	 *          {@code false otherwise}.
+	 */
+	private static <V> boolean addParam(boolean update, Consumer<V> params, V value) {
+		if(value != null) {
+			params.accept(value);
+			return true;
+		}
+		if(update) {
+			params.accept(null);
+			return true;
+		} else {
+			return false;
+		}
+	}
+
+	/**
+	 * Adds a parameter to a map if the value is non-null.
+	 *
+	 * @param update  The parameter will always be added, even if null, to update an existing object
 	 */
 	private static void addParam(boolean update, Map<String,Object> params, String name, Object value) {
 		if(value != null) {
@@ -182,6 +233,27 @@ public class Stripe implements MerchantServicesProvider {
 			return;
 		}
 		if(update) params.put(name, null);
+	}
+
+	/**
+	 * Adds a parameter to a map if the value is non-null and not empty.
+	 *
+	 * @param update  The parameter will always be added, (as empty map when {@code null}), to update an existing object
+	 *
+	 * @return  {@code true} when the parameter was set, even if set to an empty map for {@code null}.
+	 *          {@code false otherwise}.
+	 */
+	private static <K,V> boolean addParam(boolean update, Consumer<Map<K,V>> params, Map<K,V> map) {
+		if(map != null && !map.isEmpty()) {
+			params.accept(map);
+			return true;
+		}
+		if(update) {
+			params.accept(Collections.emptyMap());
+			return true;
+		} else {
+			return false;
+		}
 	}
 
 	/**
@@ -206,7 +278,7 @@ public class Stripe implements MerchantServicesProvider {
 	 *
 	 * @see  #addMetaData(boolean, java.util.Map, java.lang.String, java.lang.Object, boolean)
 	 */
-	private static void addMetaData(boolean update, Map<String,Object> metadata, String key, String value, boolean allowTruncate) {
+	private static void addMetaData(boolean update, Map<String,String> metadata, String key, String value, boolean allowTruncate) {
 		if(key.length() > MAX_METADATA_KEY_LENGTH) throw new IllegalArgumentException("Meta data key too long: " + key);
 		if(value != null) {
 			value = value.trim();
@@ -232,7 +304,7 @@ public class Stripe implements MerchantServicesProvider {
 	 *
 	 * @see  #addMetaData(boolean, java.util.Map, java.lang.String, java.lang.String, boolean)
 	 */
-	private static void addMetaData(boolean update, Map<String,Object> metadata, String key, Object value, boolean allowTrimValue) {
+	private static void addMetaData(boolean update, Map<String,String> metadata, String key, Object value, boolean allowTrimValue) {
 		addMetaData(
 			update,
 			metadata,
@@ -253,8 +325,8 @@ public class Stripe implements MerchantServicesProvider {
 	 *
 	 * @param update  The parameters will always be added, even if null, to update an existing object
 	 */
-	private static Map<String,Object> makeCustomerMetadata(CreditCard creditCard, boolean update) {
-		Map<String,Object> metadata = new LinkedHashMap<>();
+	private static Map<String,String> makeCustomerMetadata(CreditCard creditCard, boolean update) {
+		Map<String,String> metadata = new LinkedHashMap<>();
 		addMetaData(update, metadata, "company_name", creditCard.getCompanyName(), true);
 		addMetaData(update, metadata, "phone", null, true); // Moved to customer
 		addMetaData(update, metadata, "fax", creditCard.getFax(), true);
@@ -277,8 +349,8 @@ public class Stripe implements MerchantServicesProvider {
 	 * TODO: Review: <a href="https://stripe.com/docs/api/metadata?lang=java">Metadata</a>: "Do not store any sensitive information"
 	 * </p>
 	 */
-	private static Map<String,Object> makePaymentIntentMetadata(TransactionRequest transactionRequest, CreditCard creditCard, boolean update) {
-		Map<String,Object> metadata = makeCustomerMetadata(creditCard, update);
+	private static Map<String,String> makePaymentIntentMetadata(TransactionRequest transactionRequest, CreditCard creditCard, boolean update) {
+		Map<String,String> metadata = makeCustomerMetadata(creditCard, update);
 		// Additional customer meta data
 		addMetaData(update, metadata, "customer_description", creditCard.getComments(), true);
 		addMetaData(update, metadata, "customer_email", creditCard.getEmail(), false); // TODO: Email is other places, worth having here?
@@ -297,28 +369,24 @@ public class Stripe implements MerchantServicesProvider {
 	}
 
 	/**
-	 * <ol>
-	 * <li>See <a href="https://stripe.com/docs/api/customers/create?lang=java">Create a customer</a>.</li>
-	 * <li>See <a href="https://stripe.com/docs/api/customers/update?lang=java">Update a customer</a>.</li>
-	 * </ol>
+	 * See <a href="https://stripe.com/docs/api/customers/create?lang=java">Create a customer</a>.
 	 */
 	private static void addCustomerParams(
 		CreditCard creditCard,
-		boolean update,
-		Map<String,Object> customerParams
+		CustomerCreateParams.Builder builder
 	) {
 		// Unused: account_balance
 		// Unused: address
 		// Unused: coupon
 		// Unused: default_source
-		addParam(update, customerParams, "description", creditCard.getComments());
-		addParam(update, customerParams, "email", creditCard.getEmail());
+		addParam(false, builder::setDescription, creditCard.getComments());
+		addParam(false, builder::setEmail, creditCard.getEmail());
 		// Unused: invoice_prefix
 		// Unused: invoice_settings
-		addParam(update, customerParams, "metadata", makeCustomerMetadata(creditCard, update));
-		addParam(update, customerParams, "name", CreditCard.getFullName(creditCard.getFirstName(), creditCard.getLastName()));
+		addParam(false, builder::putAllMetadata, makeCustomerMetadata(creditCard, false));
+		addParam(false, builder::setName, CreditCard.getFullName(creditCard.getFirstName(), creditCard.getLastName()));
 		// Unused: payment_method
-		addParam(update, customerParams, "phone", creditCard.getPhone());
+		addParam(false, builder::setPhone, creditCard.getPhone());
 		// Unused: preferred_locales
 		// Unused: shipping
 		// source: set other places as-needed
@@ -328,15 +396,38 @@ public class Stripe implements MerchantServicesProvider {
 	}
 
 	/**
-	 * <ol>
-	 * <li>See <a href="https://stripe.com/docs/api/cards/create?lang=java">Create a card</a>.</li>
-	 * <li>See <a href="https://stripe.com/docs/api/cards/update?lang=java">Update a card</a>.</li>
-	 * </ol>
+	 * See <a href="https://stripe.com/docs/api/customers/update?lang=java">Update a customer</a>.
+	 */
+	private static void addCustomerParams(
+		CreditCard creditCard,
+		CustomerUpdateParams.Builder builder
+	) {
+		// Unused: account_balance
+		// Unused: address
+		// Unused: coupon
+		// Unused: default_source
+		addParam(true, builder::setDescription, creditCard.getComments());
+		addParam(true, builder::setEmail, creditCard.getEmail());
+		// Unused: invoice_prefix
+		// Unused: invoice_settings
+		addParam(true, builder::putAllMetadata, makeCustomerMetadata(creditCard, true));
+		addParam(true, builder::setName, CreditCard.getFullName(creditCard.getFirstName(), creditCard.getLastName()));
+		// Unused: payment_method
+		addParam(true, builder::setPhone, creditCard.getPhone());
+		// Unused: preferred_locales
+		// Unused: shipping
+		// source: set other places as-needed
+		// Unused: tax_exempt: TODO?
+		// Unused: tax_id_data
+		// Unused: tax_info
+	}
+
+	/**
+	 * See <a href="https://stripe.com/docs/api/cards/update?lang=java">Update a card</a>.
 	 */
 	private static void addCardParams(
 		CreditCard creditCard,
-		boolean update,
-		Map<String,Object> cardParams
+		CardUpdateOnCustomerParams.Builder cardParams
 	) {
 		// object: set to "card" other places as-needed
 		// number: set other places as-needed
@@ -344,73 +435,119 @@ public class Stripe implements MerchantServicesProvider {
 		// exp_year: set other places as-needed
 		// cvc: set other places as-needed
 		// Unused: currency
-		addParam(update, cardParams, "name", CreditCard.getFullName(creditCard.getFirstName(), creditCard.getLastName()));
+		addParam(true, cardParams::setName, CreditCard.getFullName(creditCard.getFirstName(), creditCard.getLastName()));
 		// metadata: TODO: Any metadata go here instead of customer?
 		// Unused: default_for_currency
-		addParam(update, cardParams, "address_line1", creditCard.getStreetAddress1());
-		addParam(update, cardParams, "address_line2", creditCard.getStreetAddress2());
-		addParam(update, cardParams, "address_city", creditCard.getCity());
-		addParam(update, cardParams, "address_state", creditCard.getState());
-		addParam(update, cardParams, "address_zip", creditCard.getPostalCode());
-		addParam(update, cardParams, "address_country", creditCard.getCountryCode());
-		// TODO: Move back to metadata, or update payment method once set? addParam(update, billing_details, "email", creditCard.getEmail());
-		// TODO: Move back to metadata, or update payment method once set? addParam(update, billing_details, "phone", creditCard.getPhone());
+		addParam(true, cardParams::setAddressLine1, creditCard.getStreetAddress1());
+		addParam(true, cardParams::setAddressLine2, creditCard.getStreetAddress2());
+		addParam(true, cardParams::setAddressCity, creditCard.getCity());
+		addParam(true, cardParams::setAddressState, creditCard.getState());
+		addParam(true, cardParams::setAddressZip, creditCard.getPostalCode());
+		addParam(true, cardParams::setAddressCountry, creditCard.getCountryCode());
+		// TODO: Move back to metadata, or update payment method once set? addParam(true, billing_details, "email", creditCard.getEmail());
+		// TODO: Move back to metadata, or update payment method once set? addParam(true, billing_details, "phone", creditCard.getPhone());
 	}
 
 	/**
-	 * <ol>
-	 * <li>See <a href="https://stripe.com/docs/api/payment_methods/create?lang=java">Create a PaymentMethod</a>.</li>
-	 * <li>See <a href="https://stripe.com/docs/api/payment_methods/update?lang=java">Update a PaymentMethod</a>.</li>
-	 * </ol>
+	 * See <a href="https://stripe.com/docs/api/payment_methods/create?lang=java">Create a PaymentMethod</a>.
 	 */
 	private static void addPaymentMethodParams(
 		CreditCard creditCard,
-		Map<String,Object> paymentMethodParams
+		PaymentMethodCreateParams.Builder paymentMethodParams
 	) {
 		// type: set to "card" other places as-needed
-		Map<String,Object> address = new HashMap<>();
-		addParam(false, address, "city", creditCard.getCity());
-		addParam(false, address, "country", creditCard.getCountryCode());
-		addParam(false, address, "line1", creditCard.getStreetAddress1());
-		addParam(false, address, "line2", creditCard.getStreetAddress2());
-		addParam(false, address, "postal_code", creditCard.getPostalCode());
-		addParam(false, address, "state", creditCard.getState());
-		Map<String,Object> billing_details = new HashMap<>();
-		addParam(false, billing_details, "address", address);
-		addParam(false, billing_details, "email", creditCard.getEmail());
-		addParam(false, billing_details, "name", CreditCard.getFullName(creditCard.getFirstName(), creditCard.getLastName()));
-		addParam(false, billing_details, "phone", creditCard.getPhone());
-		addParam(false, paymentMethodParams, "billing_details", billing_details);
+		PaymentMethodCreateParams.BillingDetails.Address address;
+		{
+			PaymentMethodCreateParams.BillingDetails.Address.Builder builder = PaymentMethodCreateParams.BillingDetails.Address.builder();
+			boolean paramSet = false;
+			paramSet |= addParam(false, builder::setCity, creditCard.getCity());
+			paramSet |= addParam(false, builder::setCountry, creditCard.getCountryCode());
+			paramSet |= addParam(false, builder::setLine1, creditCard.getStreetAddress1());
+			paramSet |= addParam(false, builder::setLine2, creditCard.getStreetAddress2());
+			paramSet |= addParam(false, builder::setPostalCode, creditCard.getPostalCode());
+			paramSet |= addParam(false, builder::setState, creditCard.getState());
+			address = paramSet ? builder.build() : null;
+		}
+		PaymentMethodCreateParams.BillingDetails billing_details;
+		{
+			PaymentMethodCreateParams.BillingDetails.Builder builder = PaymentMethodCreateParams.BillingDetails.builder();
+			boolean paramSet = false;
+			paramSet |= addParam(false, builder::setAddress, address);
+			paramSet |= addParam(false, builder::setEmail, creditCard.getEmail());
+			paramSet |= addParam(false, builder::setName, CreditCard.getFullName(creditCard.getFirstName(), creditCard.getLastName()));
+			paramSet |= addParam(false, builder::setPhone, creditCard.getPhone());
+			billing_details = paramSet ? builder.build() : null;
+		}
+		addParam(false, paymentMethodParams::setBillingDetails, billing_details);
 	}
 
 	/**
-	 * <ol>
-	 * <li>See <a href="https://stripe.com/docs/api/payment_methods/create?lang=java">Create a PaymentMethod</a>.</li>
-	 * </ol>
+	 * See <a href="https://stripe.com/docs/api/payment_methods/update?lang=java">Update a PaymentMethod</a>.
 	 */
-	private static Map<String,Object> makePaymentMethodParams(
+	private static void addPaymentMethodParams(
+		CreditCard creditCard,
+		PaymentMethodUpdateParams.Builder paymentMethodParams
+	) {
+		// type: set to "card" other places as-needed
+		PaymentMethodUpdateParams.BillingDetails.Address address;
+		{
+			PaymentMethodUpdateParams.BillingDetails.Address.Builder builder = PaymentMethodUpdateParams.BillingDetails.Address.builder();
+			boolean paramSet = false;
+			paramSet |= addParam(false, builder::setCity, creditCard.getCity());
+			paramSet |= addParam(false, builder::setCountry, creditCard.getCountryCode());
+			paramSet |= addParam(false, builder::setLine1, creditCard.getStreetAddress1());
+			paramSet |= addParam(false, builder::setLine2, creditCard.getStreetAddress2());
+			paramSet |= addParam(false, builder::setPostalCode, creditCard.getPostalCode());
+			paramSet |= addParam(false, builder::setState, creditCard.getState());
+			address = paramSet ? builder.build() : null;
+		}
+		PaymentMethodUpdateParams.BillingDetails billing_details;
+		{
+			PaymentMethodUpdateParams.BillingDetails.Builder builder = PaymentMethodUpdateParams.BillingDetails.builder();
+			boolean paramSet = false;
+			paramSet |= addParam(false, builder::setAddress, address);
+			paramSet |= addParam(false, builder::setEmail, creditCard.getEmail());
+			paramSet |= addParam(false, builder::setName, CreditCard.getFullName(creditCard.getFirstName(), creditCard.getLastName()));
+			paramSet |= addParam(false, builder::setPhone, creditCard.getPhone());
+			billing_details = paramSet ? builder.build() : null;
+		}
+		addParam(false, paymentMethodParams::setBillingDetails, billing_details);
+	}
+
+	/**
+	 * See <a href="https://stripe.com/docs/api/payment_methods/create?lang=java">Create a PaymentMethod</a>.
+	 */
+	private static PaymentMethodCreateParams makePaymentMethodParams(
 		CreditCard creditCard,
 		String cardNumber,
 		byte expirationMonth,
 		short expirationYear,
 		String cardCode
 	) {
-		Map<String,Object> paymentMethodParams = new HashMap<>();
-		paymentMethodParams.put("type", "card");
-		Map<String,Object> cardParams = new HashMap<>();
-		cardParams.put("exp_month", expirationMonth);
-		cardParams.put("exp_year", expirationYear);
-		addParam(false, cardParams, "number", CreditCard.numbersOnly(cardNumber));
-		addParam(false, cardParams, "cvc", cardCode);
-		paymentMethodParams.put("card", cardParams);
-		addPaymentMethodParams(creditCard, paymentMethodParams);
+		PaymentMethodCreateParams.CardDetails cardParams;
+		{
+			PaymentMethodCreateParams.CardDetails.Builder builder = PaymentMethodCreateParams.CardDetails.builder();
+			builder.setExpMonth((long)expirationMonth);
+			builder.setExpYear((long)expirationYear);
+			addParam(false, builder::setNumber, CreditCard.numbersOnly(cardNumber));
+			addParam(false, builder::setCvc, cardCode);
+			cardParams = builder.build();
+		}
+		PaymentMethodCreateParams paymentMethodParams;
+		{
+			PaymentMethodCreateParams.Builder builder = PaymentMethodCreateParams.builder();
+			builder.setType(PaymentMethodCreateParams.Type.CARD);
+			builder.setCard(cardParams);
+			addPaymentMethodParams(creditCard, builder);
+			paymentMethodParams = builder.build();
+		}
 		return paymentMethodParams;
 	}
 
 	/**
 	 * @see  #makePaymentMethodParams(com.aoindustries.creditcards.CreditCard, java.lang.String, byte, short, java.lang.String)
 	 */
-	private static Map<String,Object> makePaymentMethodParams(CreditCard creditCard) {
+	private static PaymentMethodCreateParams makePaymentMethodParams(CreditCard creditCard) {
 		return makePaymentMethodParams(
 			creditCard,
 			creditCard.getCardNumber(),
@@ -421,24 +558,33 @@ public class Stripe implements MerchantServicesProvider {
 	}
 
 	/**
-	 * See <a href="https://stripe.com/docs/api/charges/create?lang=java">Create a charge</a>.
+	 * See <a href="https://stripe.com/docs/api/payment_intents/create?lang=java">Create a PaymentIntent</a>.
 	 */
-	private static Map<String,Object> makeShippingParams(TransactionRequest transactionRequest, CreditCard creditCard, boolean update) {
-		Map<String,Object> addressParams = new HashMap<>();
-		addParam(update, addressParams, "line1", transactionRequest.getShippingStreetAddress1());
-		addParam(update, addressParams, "city", transactionRequest.getShippingCity());
-		addParam(update, addressParams, "country", transactionRequest.getShippingCountryCode());
-		addParam(update, addressParams, "line2", transactionRequest.getShippingStreetAddress2());
-		addParam(update, addressParams, "postal_code", transactionRequest.getShippingPostalCode());
-		addParam(update, addressParams, "state", transactionRequest.getShippingState());
-		Map<String,Object> shippingParams = new HashMap<>();
-		addParam(update, shippingParams, "address", addressParams);
-		addParam(update, shippingParams, "name", CreditCard.getFullName(transactionRequest.getShippingFirstName(), transactionRequest.getShippingLastName()));
-		// Unused: carrier
-		// Phone cannot be in the shipping by itself
-		if(!shippingParams.isEmpty()) addParam(update, shippingParams, "phone", creditCard.getPhone());
-		// Unused: tracking_number
-		return shippingParams;
+	private static PaymentIntentCreateParams.Shipping makeShippingParams(TransactionRequest transactionRequest, CreditCard creditCard) {
+		PaymentIntentCreateParams.Shipping.Address address;
+		{
+			PaymentIntentCreateParams.Shipping.Address.Builder builder = PaymentIntentCreateParams.Shipping.Address.builder();
+			boolean paramSet = false;
+			paramSet |= addParam(false, builder::setLine1, transactionRequest.getShippingStreetAddress1());
+			paramSet |= addParam(false, builder::setCity, transactionRequest.getShippingCity());
+			paramSet |= addParam(false, builder::setCountry, transactionRequest.getShippingCountryCode());
+			paramSet |= addParam(false, builder::setLine2, transactionRequest.getShippingStreetAddress2());
+			paramSet |= addParam(false, builder::setPostalCode, transactionRequest.getShippingPostalCode());
+			paramSet |= addParam(false, builder::setState, transactionRequest.getShippingState());
+			address = paramSet ? builder.build() : null;
+		}
+		PaymentIntentCreateParams.Shipping shipping;
+		{
+			PaymentIntentCreateParams.Shipping.Builder shippingBuilder = PaymentIntentCreateParams.Shipping.builder();
+			boolean paramSet = false;
+			paramSet |= addParam(false, shippingBuilder::setAddress, address);
+			paramSet |= addParam(false, shippingBuilder::setName, CreditCard.getFullName(transactionRequest.getShippingFirstName(), transactionRequest.getShippingLastName()));
+			// Unused: carrier		addParam(update, shippingParams, "address", addressParams);
+			paramSet |= addParam(false, shippingBuilder::setPhone, creditCard.getPhone());
+			// Unused: tracking_number
+			shipping = paramSet ? shippingBuilder.build() : null;
+		}
+		return shipping;
 	}
 
 	private static class ConvertedError {
@@ -1049,6 +1195,18 @@ public class Stripe implements MerchantServicesProvider {
 		return new Tuple2<>(customer, paymentMethodId);
 	}
 
+	private static final BigInteger LONG_MAX_VALUE = BigInteger.valueOf(Long.MAX_VALUE);
+
+	/**
+	 * Converts an amount to a Long while checking bounds are between {@code 0} and {@link Long#MAX_VALUE}, inclusive.
+	 */
+	private static Long convertAmountToLong(BigInteger value) {
+		if(value == null) return null;
+		if(value.signum() < 0) throw new ArithmeticException("value < 0: " + value);
+		if(value.compareTo(LONG_MAX_VALUE) > 0) throw new ArithmeticException("value > Long.MAX_VALUE: " + value);
+		return value.longValue();
+	}
+
 	/**
 	 * <ol>
 	 * <li>See <a href="https://stripe.com/docs/api/payment_intents/create?lang=java">Create a PaymentIntent</a>.</li>
@@ -1076,65 +1234,69 @@ public class Stripe implements MerchantServicesProvider {
 				if(currencyDigits < 0) throw new AssertionError("currencyDigits < 0: " + currencyDigits);
 				BigInteger amount = totalAmount.scaleByPowerOfTen(currencyDigits).toBigIntegerExact();
 				// Create the PaymentIntent
-				Map<String,Object> paymentIntentParams = new HashMap<>();
-				paymentIntentParams.put("amount", amount);
-				paymentIntentParams.put("currency", currency.getCurrencyCode());
-				// Unused: application_fee_amount
-				paymentIntentParams.put("capture_method", capture ? "automatic" : "manual");
-				paymentIntentParams.put("confirm", true);
-				paymentIntentParams.put("confirmation_method", "manual");
-				String customerId = creditCard.getProviderUniqueId();
-				if(customerId != null) {
-					// Is a stored card
-					paymentIntentParams.put("customer", customerId);
-				}
-				addParam(false, paymentIntentParams, "description", transactionRequest.getDescription());
-				addParam(false, paymentIntentParams, "metadata", makePaymentIntentMetadata(transactionRequest, creditCard, false));
-				// Unused: on_behalf_of
-				if(customerId != null) {
-					// Is a stored card
-					Customer customer;
-					{
-						Tuple2<Customer,String> combined = getDefaultPaymentMethodId(Customer.retrieve(customerId, options));
-						customer = combined.getElement1();
-						paymentMethodId = combined.getElement2();
+				PaymentIntentCreateParams paymentIntentParams;
+				{
+					PaymentIntentCreateParams.Builder builder = PaymentIntentCreateParams.builder();
+					builder.setAmount(convertAmountToLong(amount));
+					builder.setCurrency(currency.getCurrencyCode());
+					// Unused: application_fee_amount
+					builder.setCaptureMethod(capture ? PaymentIntentCreateParams.CaptureMethod.AUTOMATIC : PaymentIntentCreateParams.CaptureMethod.MANUAL);
+					builder.setConfirm(true);
+					builder.setConfirmationMethod(PaymentIntentCreateParams.ConfirmationMethod.MANUAL);
+					String customerId = creditCard.getProviderUniqueId();
+					if(customerId != null) {
+						// Is a stored card
+						builder.setCustomer(customerId);
 					}
-					if(paymentMethodId == null) {
-						// Look for a default source for backward compatibility
-						paymentMethodId = customer.getDefaultSource();
+					addParam(false, builder::setDescription, transactionRequest.getDescription());
+					addParam(false, builder::putAllMetadata, makePaymentIntentMetadata(transactionRequest, creditCard, false));
+					// Unused: on_behalf_of
+					if(customerId != null) {
+						// Is a stored card
+						Customer customer;
+						{
+							Tuple2<Customer,String> combined = getDefaultPaymentMethodId(Customer.retrieve(customerId, options));
+							customer = combined.getElement1();
+							paymentMethodId = combined.getElement2();
+						}
+						if(paymentMethodId == null) {
+							// Look for a default source for backward compatibility
+							paymentMethodId = customer.getDefaultSource();
+						}
+					} else {
+						// Is a new card
+						paymentMethodId = PaymentMethod.create(makePaymentMethodParams(creditCard), options).getId();
 					}
-				} else {
-					// Is a new card
-					paymentMethodId = PaymentMethod.create(makePaymentMethodParams(creditCard), options).getId();
-				}
-				paymentIntentParams.put("payment_method", paymentMethodId);
-				// Unused: payment_method_types
-				if(transactionRequest.getEmailCustomer()) {
-					// TODO: The actual sending of email is configured on the Stripe account.  How to control through API?
-					addParam(false, paymentIntentParams, "receipt_email", creditCard.getEmail());
-				}
-				// Unused: save_payment_method
-				addParam(false, paymentIntentParams, "shipping", makeShippingParams(transactionRequest, creditCard, false));
-				// Unused: source
-				String orderNumber = transactionRequest.getOrderNumber();
-				if(orderNumber != null) {
-					orderNumber = orderNumber.trim();
-					if(!orderNumber.isEmpty()) {
-						// Avoid "The statement descriptor must contain at least one alphabetic character."
-						boolean hasAlpha = false;
-						for(int i = 0, len = orderNumber.length(); i < len; ) {
-							int codepoint = orderNumber.codePointAt(i);
-							if(Character.isAlphabetic(codepoint)) {
-								hasAlpha = true;
-								break;
+					builder.setPaymentMethod(paymentMethodId);
+					// Unused: payment_method_types
+					if(transactionRequest.getEmailCustomer()) {
+						// TODO: The actual sending of email is configured on the Stripe account.  How to control through API?
+						addParam(false, builder::setReceiptEmail, creditCard.getEmail());
+					}
+					// Unused: save_payment_method
+					addParam(false, builder::setShipping, makeShippingParams(transactionRequest, creditCard));
+					// Unused: source
+					String orderNumber = transactionRequest.getOrderNumber();
+					if(orderNumber != null) {
+						orderNumber = orderNumber.trim();
+						if(!orderNumber.isEmpty()) {
+							// Avoid "The statement descriptor must contain at least one alphabetic character."
+							boolean hasAlpha = false;
+							for(int i = 0, len = orderNumber.length(); i < len; ) {
+								int codepoint = orderNumber.codePointAt(i);
+								if(Character.isAlphabetic(codepoint)) {
+									hasAlpha = true;
+									break;
+								}
+								i += Character.charCount(codepoint);
 							}
-							i += Character.charCount(codepoint);
-						}
-						String statement_descriptor = hasAlpha ? orderNumber : (STATEMENT_DESCRIPTOR_PREFIX + orderNumber);
-						if(statement_descriptor.length() <= MAX_STATEMENT_DESCRIPTOR_LEN) {
-							addParam(false, paymentIntentParams, "statement_descriptor", statement_descriptor);
+							String statement_descriptor = hasAlpha ? orderNumber : (STATEMENT_DESCRIPTOR_PREFIX + orderNumber);
+							if(statement_descriptor.length() <= MAX_STATEMENT_DESCRIPTOR_LEN) {
+								builder.setStatementDescriptor(statement_descriptor);
+							}
 						}
 					}
+					paymentIntentParams = builder.build();
 				}
 				// Unused: transfer_data
 				// Unused: transfer_group
@@ -1306,9 +1468,13 @@ public class Stripe implements MerchantServicesProvider {
 		String id = authorizationResult.getProviderUniqueId();
 		try {
 			PaymentIntent intent = PaymentIntent.retrieve(id, options);
-			Map<String,Object> params = new HashMap<>();
-			// Unused: amount_to_capture
-			// Unused: application_fee_amount
+			PaymentIntentCaptureParams params;
+			{
+				PaymentIntentCaptureParams.Builder builder = PaymentIntentCaptureParams.builder();
+				// Unused: amount_to_capture
+				// Unused: application_fee_amount
+				params = builder.build();
+			}
 			PaymentIntent captured = intent.capture(params, options);
 			String status = captured.getStatus();
 			if("succeeded".equals(status)) {
@@ -1388,8 +1554,12 @@ public class Stripe implements MerchantServicesProvider {
 			// Create the Customer
 			Customer customer;
 			{
-				Map<String,Object> customerParams = new HashMap<>();
-				addCustomerParams(creditCard, false, customerParams);
+				CustomerCreateParams customerParams;
+				{
+					CustomerCreateParams.Builder builder = CustomerCreateParams.builder();
+					addCustomerParams(creditCard, builder);
+					customerParams = builder.build();
+				}
 				customer = Customer.create(customerParams, options);
 			}
 			// Create the payment method
@@ -1397,15 +1567,20 @@ public class Stripe implements MerchantServicesProvider {
 			// Attach the payment method to the customer
 			// TODO: During attach, AVS and CVC checks are performed.  What to do here?  Error, return, log and fail on payment? Probably API 2.0 allow CVV and AVS at this point, too
 			paymentMethod.attach(
-				Collections.singletonMap("customer", (Object)customer.getId()),
+				PaymentMethodAttachParams.builder()
+					.setCustomer(customer.getId())
+					.build(),
 				options
 			);
 			// Set as default payment method
 			customer = customer.update(
-				Collections.singletonMap(
-					"invoice_settings",
-					(Object)Collections.singletonMap("default_payment_method", paymentMethod.getId())
-				),
+				CustomerUpdateParams.builder()
+					.setInvoiceSettings(
+						CustomerUpdateParams.InvoiceSettings.builder()
+							.setDefaultPaymentMethod(paymentMethod.getId())
+							.build()
+					)
+					.build(),
 				options
 			);
 			// Return the Id of the new customer
@@ -1432,8 +1607,12 @@ public class Stripe implements MerchantServicesProvider {
 			// Find the customer
 			Customer customer = Customer.retrieve(creditCard.getProviderUniqueId(), options);
 			// Update the Customer
-			Map<String,Object> customerParams = new HashMap<>();
-			addCustomerParams(creditCard, true, customerParams);
+			CustomerUpdateParams customerParams;
+			{
+				CustomerUpdateParams.Builder builder = CustomerUpdateParams.builder();
+				addCustomerParams(creditCard, builder);
+				customerParams = builder.build();
+			}
 			customer = customer.update(customerParams, options);
 
 			String paymentMethodId;
@@ -1447,8 +1626,12 @@ public class Stripe implements MerchantServicesProvider {
 				// Find the PaymentMethod
 				PaymentMethod defaultPaymentMethod = PaymentMethod.retrieve(paymentMethodId, options);
 				// Update PaymentMethod
-				Map<String,Object> paymentMethodParams = new HashMap<>();
-				addPaymentMethodParams(creditCard, paymentMethodParams);
+				PaymentMethodUpdateParams paymentMethodParams;
+				{
+					PaymentMethodUpdateParams.Builder builder = PaymentMethodUpdateParams.builder();
+					addPaymentMethodParams(creditCard, builder);
+					paymentMethodParams = builder.build();
+				}
 				defaultPaymentMethod.update(paymentMethodParams, options);
 				// Check for incomplete conversion to PaymentMethod
 				if(defaultSource != null) {
@@ -1460,8 +1643,12 @@ public class Stripe implements MerchantServicesProvider {
 				// Find the default Card
 				Card defaultCard = (Card)customer.getSources().retrieve(defaultSource, options);
 				// Update the default Card
-				Map<String,Object> cardParams = new HashMap<>();
-				addCardParams(creditCard, true, cardParams);
+				CardUpdateOnCustomerParams cardParams;
+				{
+					CardUpdateOnCustomerParams.Builder builder = CardUpdateOnCustomerParams.builder();
+					addCardParams(creditCard, builder);
+					cardParams = builder.build();
+				}
 				defaultCard.update(cardParams, options);
 			}
 		} catch(StripeException e) {
@@ -1515,15 +1702,20 @@ public class Stripe implements MerchantServicesProvider {
 			// Attach the payment method to the customer
 			// TODO: During attach, AVS and CVC checks are performed.  What to do here?  Error, return, log and fail on payment? Probably API 2.0 allow CVV and AVS at this point, too
 			paymentMethod.attach(
-				Collections.singletonMap("customer", (Object)customer.getId()),
+				PaymentMethodAttachParams.builder()
+					.setCustomer(customer.getId())
+					.build(),
 				options
 			);
 			// Set as default payment method
 			customer = customer.update(
-				Collections.singletonMap(
-					"invoice_settings",
-					(Object)Collections.singletonMap("default_payment_method", paymentMethod.getId())
-				),
+				CustomerUpdateParams.builder()
+					.setInvoiceSettings(
+						CustomerUpdateParams.InvoiceSettings.builder()
+							.setDefaultPaymentMethod(paymentMethod.getId())
+							.build()
+					)
+					.build(),
 				options
 			);
 
@@ -1581,11 +1773,15 @@ public class Stripe implements MerchantServicesProvider {
 				// Find the PaymentMethod
 				PaymentMethod defaultPaymentMethod = PaymentMethod.retrieve(paymentMethodId, options);
 				// Update PaymentMethod
-				Map<String,Object> cardParams = new HashMap<>();
-				cardParams.put("exp_month", expirationMonth);
-				cardParams.put("exp_year", expirationYear);
 				defaultPaymentMethod.update(
-					Collections.singletonMap("card", (Object)cardParams),
+					PaymentMethodUpdateParams.builder()
+						.setCard(
+							PaymentMethodUpdateParams.Card.builder()
+								.setExpMonth((long)expirationMonth)
+								.setExpYear((long)expirationYear)
+								.build()
+						)
+						.build(),
 					options
 				);
 				// Check for incomplete conversion to PaymentMethod
@@ -1601,11 +1797,10 @@ public class Stripe implements MerchantServicesProvider {
 				defaultCard.update(
 					CardUpdateOnCustomerParams.builder()
 						.setExpMonth(zeroPad(expirationMonth))
-						.setExpYear(Integer.toString(expirationYear))
+						.setExpYear(Short.toString(expirationYear))
 						.build(),
 					options
 				);
-				// TODO: Should we use builder pattern across the rest of this implementation?
 			}
 		} catch(StripeException e) {
 			ConvertedError converted = convertError(e);
