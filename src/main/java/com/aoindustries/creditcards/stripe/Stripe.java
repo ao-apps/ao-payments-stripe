@@ -34,25 +34,43 @@ import com.aoindustries.creditcards.TransactionRequest;
 import com.aoindustries.creditcards.TransactionResult;
 import com.aoindustries.creditcards.VoidResult;
 import com.aoindustries.io.LocalizedIOException;
-import com.stripe.exception.APIConnectionException;
-import com.stripe.exception.APIException;
+import com.aoindustries.util.Tuple2;
+import com.stripe.exception.ApiConnectionException;
+import com.stripe.exception.ApiException;
 import com.stripe.exception.AuthenticationException;
 import com.stripe.exception.CardException;
+import com.stripe.exception.EventDataObjectDeserializationException;
+import com.stripe.exception.IdempotencyException;
 import com.stripe.exception.InvalidRequestException;
+import com.stripe.exception.PermissionException;
+import com.stripe.exception.RateLimitException;
+import com.stripe.exception.SignatureVerificationException;
 import com.stripe.exception.StripeException;
+import com.stripe.exception.oauth.OAuthException;
 import com.stripe.model.Card;
 import com.stripe.model.Charge;
+import com.stripe.model.ChargeCollection;
 import com.stripe.model.Customer;
-import com.stripe.model.CustomerCardCollection;
-import com.stripe.model.DeletedCustomer;
+import com.stripe.model.PaymentIntent;
+import com.stripe.model.PaymentMethod;
+import com.stripe.model.PaymentMethodCollection;
+import com.stripe.model.PaymentSource;
+import com.stripe.model.StripeError;
+import com.stripe.model.oauth.OAuthError;
 import com.stripe.net.RequestOptions;
+import com.stripe.param.CardUpdateOnCustomerParams;
+import com.stripe.param.CustomerUpdateParams;
+import com.stripe.param.PaymentMethodListParams;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.util.Collections;
 import java.util.Currency;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Provider for Stripe<br>
@@ -61,30 +79,54 @@ import java.util.Map;
  * <ol>
  *   <li>apiKey - the Stripe account secret key</li>
  * </ol>
- *
- * TODO: Support testMode with optional testApiKey
+ * <p>
+ * TODO: Support testMode with optional testApiKey.  This would require
+ * testMode on CreditCard, too.
+ * </p>
+ * <p>
  * TODO: Support Stripe.js
+ * </p>
+ * <p>
+ * TODO: Support Idempotent Requests with automatic retry on network errors.
+ * </p>
+ * <p>
+ * TODO: Support <a href="https://stripe.com/docs/api/request_ids?lang=java">Request IDs</a>.
+ * </p>
+ * <p>
+ * TODO: Support <a href="https://stripe.com/docs/connect/direct-charges#collecting-fees">Collecting application fees</a>?
+ * </p>
+ * <p>
+ * TODO: Can we get this listed as a <a href="https://stripe.com/docs/libraries#java">community library or plugin-in</a>?
+ * </p>
+ * <p>
+ * TODO: Might be better to switch to <a href="https://stripe.com/docs/billing/subscriptions/payment">Subscriptions</a> for stored card implementation.
+ * </p>
  *
  * @author  AO Industries, Inc.
  */
 public class Stripe implements MerchantServicesProvider {
 
-	private static final String STRIPE_API_VERSION = "2015-01-11";
-
-	// From https://stripe.com/docs/api/java#metadata
-	private static final int MAX_METADATA_KEYS = 20;
-	private static final int MAX_METADATA_KEY_LENGTH = 40;
-	private static final int MAX_METADATA_VALUE_LENGTH = 500;
+	/**
+	 * See <a href="https://stripe.com/docs/api/metadata?lang=java">Metadata</a>.
+	 */
+	private static final int
+		MAX_METADATA_KEYS = 50,
+		MAX_METADATA_KEY_LENGTH = 40,
+		MAX_METADATA_VALUE_LENGTH = 500;
 
 	/**
-	 * The maximum allowed statement descriptor.
-	 * From https://stripe.com/docs/api#create_charge
+	 * The maximum allowed statement descriptor length.
+	 * <ol>
+	 * <li>See <a href="https://stripe.com/docs/api/charges/create?lang=java">Create a charge</a>.</li>
+	 * <li>See <a href="https://stripe.com/docs/charges#dynamic-statement-descriptor">Dynamic statement descriptor</a>.</li>
+	 * </ol>
 	 */
 	private static final int MAX_STATEMENT_DESCRIPTOR_LEN = 22;
 
 	/**
-	 * The characters on the statement before the order number.
+	 * The characters on the statement before the order number when the order number has no alpha characters itself.
 	 */
+	// TODO: Make configurable in future version of API
 	private static final String STATEMENT_DESCRIPTOR_PREFIX = "AO#";
 
 	private final String providerId;
@@ -98,7 +140,6 @@ public class Stripe implements MerchantServicesProvider {
 		this.options = RequestOptions
 			.builder()
 			.setApiKey(apiKey)
-			.setStripeVersion(STRIPE_API_VERSION)
 			.build();
 	}
 
@@ -114,7 +155,11 @@ public class Stripe implements MerchantServicesProvider {
 		return apiKey;
 	}
 
-	// <editor-fold defaultstate="collapsed" desc="API parameters">
+	/**
+	 * Adds a trimmed parameter to a map if the value is non-null and not empty after trimming.
+	 *
+	 * @param update  The parameter will always be added, even if null, to update an existing object
+	 */
 	private static void addParam(boolean update, Map<String,Object> params, String name, String value) {
 		if(value != null) {
 			value = value.trim();
@@ -126,6 +171,11 @@ public class Stripe implements MerchantServicesProvider {
 		if(update) params.put(name, null);
 	}
 
+	/**
+	 * Adds a parameter to a map if the value is non-null.
+	 *
+	 * @param update  The parameter will always be added, even if null, to update an existing object
+	 */
 	private static void addParam(boolean update, Map<String,Object> params, String name, Object value) {
 		if(value != null) {
 			params.put(name, value);
@@ -134,6 +184,11 @@ public class Stripe implements MerchantServicesProvider {
 		if(update) params.put(name, null);
 	}
 
+	/**
+	 * Adds a parameter to a map if the value is non-null and not empty.
+	 *
+	 * @param update  The parameter will always be added, even if null, to update an existing object
+	 */
 	private static void addParam(boolean update, Map<String,Object> params, String name, Map<String,Object> map) {
 		if(map != null && !map.isEmpty()) {
 			params.put(name, map);
@@ -142,13 +197,22 @@ public class Stripe implements MerchantServicesProvider {
 		if(update) params.put(name, null);
 	}
 
-	private static void addMetaData(boolean update, Map<String,Object> metadata, String key, String value, boolean allowTrimValue) {
+	/**
+	 * Adds a trimmed metadata value if the value is non-null and not empty after trimming.
+	 *
+	 * @param update  The parameter will always be added, even if null, to update an existing object
+	 * @param allowTruncate  Truncate the value if its length is greater than {@link #MAX_METADATA_VALUE_LENGTH},
+	 *                       rather than throwing {@link IllegalArgumentException}.
+	 *
+	 * @see  #addMetaData(boolean, java.util.Map, java.lang.String, java.lang.Object, boolean)
+	 */
+	private static void addMetaData(boolean update, Map<String,Object> metadata, String key, String value, boolean allowTruncate) {
 		if(key.length() > MAX_METADATA_KEY_LENGTH) throw new IllegalArgumentException("Meta data key too long: " + key);
 		if(value != null) {
 			value = value.trim();
 			if(!value.isEmpty()) {
 				if(value.length() > MAX_METADATA_VALUE_LENGTH) {
-					if(allowTrimValue) value = value.substring(0, MAX_METADATA_VALUE_LENGTH);
+					if(allowTruncate) value = value.substring(0, MAX_METADATA_VALUE_LENGTH);
 					else throw new IllegalArgumentException("Meta data value too long: " + value);
 				}
 				if(!metadata.containsKey(key) && metadata.size() >= MAX_METADATA_KEYS) throw new IllegalStateException("Too many meta data keys");
@@ -159,42 +223,71 @@ public class Stripe implements MerchantServicesProvider {
 		if(update) metadata.put(key, null);
 	}
 
+	/**
+	 * Adds a trimmed metadata value, via {@link Object#toString()}, if the value is non-null and not empty after trimming.
+	 *
+	 * @param update  The parameter will always be added, even if null, to update an existing object
+	 * @param allowTruncate  Truncate the value if its length is greater than {@link #MAX_METADATA_VALUE_LENGTH},
+	 *                       rather than throwing {@link IllegalArgumentException}.
+	 *
+	 * @see  #addMetaData(boolean, java.util.Map, java.lang.String, java.lang.String, boolean)
+	 */
 	private static void addMetaData(boolean update, Map<String,Object> metadata, String key, Object value, boolean allowTrimValue) {
 		addMetaData(
 			update,
 			metadata,
 			key,
-			value==null ? (String)value : value.toString(),
+			value == null ? (String)value : value.toString(),
 			allowTrimValue
 		);
 	}
 
-	/** https://stripe.com/docs/api#metadata */
-	private static Map<String,Object> makeMetadata(CreditCard creditCard, boolean update) {
+	/**
+	 * Creates the meta data for a customer.
+	 * <p>
+	 * See <a href="https://stripe.com/docs/api/metadata?lang=java">Metadata</a>.
+	 * </p>
+	 * <p>
+	 * TODO: Review: <a href="https://stripe.com/docs/api/metadata?lang=java">Metadata</a>: "Do not store any sensitive information"
+	 * </p>
+	 *
+	 * @param update  The parameters will always be added, even if null, to update an existing object
+	 */
+	private static Map<String,Object> makeCustomerMetadata(CreditCard creditCard, boolean update) {
 		Map<String,Object> metadata = new LinkedHashMap<>();
 		addMetaData(update, metadata, "company_name", creditCard.getCompanyName(), true);
-		addMetaData(update, metadata, "phone", creditCard.getPhone(), true);
+		addMetaData(update, metadata, "phone", null, true); // Moved to customer
 		addMetaData(update, metadata, "fax", creditCard.getFax(), true);
 		addMetaData(update, metadata, "customer_id", creditCard.getCustomerId(), true);
 		addMetaData(update, metadata, "customer_tax_id", creditCard.getCustomerTaxId(), true);
+		// TODO: In a future release, create only one customer per group?
+		// TODO: Would also have to set the default based on our settings of which is selected for auto payment?
+		addMetaData(update, metadata, "group_name", creditCard.getGroupName(), true); // TODO: Other connectors, too
+		addMetaData(update, metadata, "principal_name", creditCard.getPrincipalName(), true); // TODO: Other connectors, too
 		return metadata;
 	}
 
 	/**
-	 * Meta data contains both card meta data (also associated with "customer" for stored cards) and transaction meta data.
-	 * https://stripe.com/docs/api#create_charge
+	 * Creates the meta data for both card meta data (also associated with "customer" for stored cards) and transaction meta data.
+	 * <ol>
+	 * <li>See <a href="https://stripe.com/docs/api/metadata?lang=java">Metadata</a>.</li>
+	 * <li>See <a href="https://stripe.com/docs/api/charges/create?lang=java">Create a charge</a>.</li>
+	 * </ol>
+	 * <p>
+	 * TODO: Review: <a href="https://stripe.com/docs/api/metadata?lang=java">Metadata</a>: "Do not store any sensitive information"
+	 * </p>
 	 */
-	private static Map<String,Object> makeMetadata(TransactionRequest transactionRequest, CreditCard creditCard, boolean update) {
-		Map<String,Object> metadata = makeMetadata(creditCard, update);
+	private static Map<String,Object> makePaymentIntentMetadata(TransactionRequest transactionRequest, CreditCard creditCard, boolean update) {
+		Map<String,Object> metadata = makeCustomerMetadata(creditCard, update);
 		// Additional customer meta data
 		addMetaData(update, metadata, "customer_description", creditCard.getComments(), true);
-		addMetaData(update, metadata, "customer_email", creditCard.getEmail(), false);
+		addMetaData(update, metadata, "customer_email", creditCard.getEmail(), false); // TODO: Email is other places, worth having here?
 		// Transaction meta data
 		addMetaData(update, metadata, "customer_ip", transactionRequest.getCustomerIp(), false);
-		addMetaData(update, metadata, "order_number", transactionRequest.getOrderNumber(), false);
+		addMetaData(update, metadata, "order_number", transactionRequest.getOrderNumber(), false); // TODO: statement_descriptor only?
 		addMetaData(update, metadata, "amount", transactionRequest.getAmount(), false);
 		addMetaData(update, metadata, "tax_amount", transactionRequest.getTaxAmount(), false);
-		addMetaData(update, metadata, "tax_exempt", transactionRequest.getTaxExempt(), false);
+		addMetaData(update, metadata, "tax_exempt", transactionRequest.getTaxExempt(), false); // TODO: Move to "tax_exempt" found elsewhere?  Set on customer, too, once known here?
 		addMetaData(update, metadata, "shipping_amount", transactionRequest.getShippingAmount(), false);
 		addMetaData(update, metadata, "duty_amount", transactionRequest.getDutyAmount(), false);
 		addMetaData(update, metadata, "shipping_company_name", transactionRequest.getShippingCompanyName(), true);
@@ -203,53 +296,123 @@ public class Stripe implements MerchantServicesProvider {
 		return metadata;
 	}
 
-	/** https://stripe.com/docs/api#update_customer */
+	/**
+	 * <ol>
+	 * <li>See <a href="https://stripe.com/docs/api/customers/create?lang=java">Create a customer</a>.</li>
+	 * <li>See <a href="https://stripe.com/docs/api/customers/update?lang=java">Update a customer</a>.</li>
+	 * </ol>
+	 */
 	private static void addCustomerParams(
 		CreditCard creditCard,
 		boolean update,
 		Map<String,Object> customerParams
 	) {
+		// Unused: account_balance
+		// Unused: address
+		// Unused: coupon
+		// Unused: default_source
 		addParam(update, customerParams, "description", creditCard.getComments());
 		addParam(update, customerParams, "email", creditCard.getEmail());
-		addParam(update, customerParams, "metadata", makeMetadata(creditCard, update));
+		// Unused: invoice_prefix
+		// Unused: invoice_settings
+		addParam(update, customerParams, "metadata", makeCustomerMetadata(creditCard, update));
+		addParam(update, customerParams, "name", CreditCard.getFullName(creditCard.getFirstName(), creditCard.getLastName()));
+		// Unused: payment_method
+		addParam(update, customerParams, "phone", creditCard.getPhone());
+		// Unused: preferred_locales
+		// Unused: shipping
+		// source: set other places as-needed
+		// Unused: tax_exempt: TODO?
+		// Unused: tax_id_data
+		// Unused: tax_info
 	}
 
-	/** https://stripe.com/docs/api#update_card */
+	/**
+	 * <ol>
+	 * <li>See <a href="https://stripe.com/docs/api/cards/create?lang=java">Create a card</a>.</li>
+	 * <li>See <a href="https://stripe.com/docs/api/cards/update?lang=java">Update a card</a>.</li>
+	 * </ol>
+	 */
 	private static void addCardParams(
 		CreditCard creditCard,
 		boolean update,
 		Map<String,Object> cardParams
 	) {
+		// object: set to "card" other places as-needed
+		// number: set other places as-needed
+		// exp_month: set other places as-needed
+		// exp_year: set other places as-needed
+		// cvc: set other places as-needed
+		// Unused: currency
 		addParam(update, cardParams, "name", CreditCard.getFullName(creditCard.getFirstName(), creditCard.getLastName()));
+		// metadata: TODO: Any metadata go here instead of customer?
+		// Unused: default_for_currency
 		addParam(update, cardParams, "address_line1", creditCard.getStreetAddress1());
 		addParam(update, cardParams, "address_line2", creditCard.getStreetAddress2());
 		addParam(update, cardParams, "address_city", creditCard.getCity());
-		addParam(update, cardParams, "address_zip", creditCard.getPostalCode());
 		addParam(update, cardParams, "address_state", creditCard.getState());
+		addParam(update, cardParams, "address_zip", creditCard.getPostalCode());
 		addParam(update, cardParams, "address_country", creditCard.getCountryCode());
+		// TODO: Move back to metadata, or update payment method once set? addParam(update, billing_details, "email", creditCard.getEmail());
+		// TODO: Move back to metadata, or update payment method once set? addParam(update, billing_details, "phone", creditCard.getPhone());
 	}
 
-	private static Map<String,Object> makeCardParams(
+	/**
+	 * <ol>
+	 * <li>See <a href="https://stripe.com/docs/api/payment_methods/create?lang=java">Create a PaymentMethod</a>.</li>
+	 * <li>See <a href="https://stripe.com/docs/api/payment_methods/update?lang=java">Update a PaymentMethod</a>.</li>
+	 * </ol>
+	 */
+	private static void addPaymentMethodParams(
 		CreditCard creditCard,
-		boolean update,
+		Map<String,Object> paymentMethodParams
+	) {
+		// type: set to "card" other places as-needed
+		Map<String,Object> address = new HashMap<>();
+		addParam(false, address, "city", creditCard.getCity());
+		addParam(false, address, "country", creditCard.getCountryCode());
+		addParam(false, address, "line1", creditCard.getStreetAddress1());
+		addParam(false, address, "line2", creditCard.getStreetAddress2());
+		addParam(false, address, "postal_code", creditCard.getPostalCode());
+		addParam(false, address, "state", creditCard.getState());
+		Map<String,Object> billing_details = new HashMap<>();
+		addParam(false, billing_details, "address", address);
+		addParam(false, billing_details, "email", creditCard.getEmail());
+		addParam(false, billing_details, "name", CreditCard.getFullName(creditCard.getFirstName(), creditCard.getLastName()));
+		addParam(false, billing_details, "phone", creditCard.getPhone());
+		addParam(false, paymentMethodParams, "billing_details", billing_details);
+	}
+
+	/**
+	 * <ol>
+	 * <li>See <a href="https://stripe.com/docs/api/payment_methods/create?lang=java">Create a PaymentMethod</a>.</li>
+	 * </ol>
+	 */
+	private static Map<String,Object> makePaymentMethodParams(
+		CreditCard creditCard,
 		String cardNumber,
 		byte expirationMonth,
 		short expirationYear,
 		String cardCode
 	) {
+		Map<String,Object> paymentMethodParams = new HashMap<>();
+		paymentMethodParams.put("type", "card");
 		Map<String,Object> cardParams = new HashMap<>();
-		addParam(update, cardParams, "number", CreditCard.numbersOnly(cardNumber));
-		addParam(update, cardParams, "exp_month", expirationMonth);
-		addParam(update, cardParams, "exp_year", expirationYear);
-		addParam(update, cardParams, "cvc", cardCode);
-		addCardParams(creditCard, update, cardParams);
-		return cardParams;
+		cardParams.put("exp_month", expirationMonth);
+		cardParams.put("exp_year", expirationYear);
+		addParam(false, cardParams, "number", CreditCard.numbersOnly(cardNumber));
+		addParam(false, cardParams, "cvc", cardCode);
+		paymentMethodParams.put("card", cardParams);
+		addPaymentMethodParams(creditCard, paymentMethodParams);
+		return paymentMethodParams;
 	}
 
-	private static Map<String,Object> makeCardParams(CreditCard creditCard, boolean update) {
-		return makeCardParams(
+	/**
+	 * @see  #makePaymentMethodParams(com.aoindustries.creditcards.CreditCard, java.lang.String, byte, short, java.lang.String)
+	 */
+	private static Map<String,Object> makePaymentMethodParams(CreditCard creditCard) {
+		return makePaymentMethodParams(
 			creditCard,
-			update,
 			creditCard.getCardNumber(),
 			creditCard.getExpirationMonth(),
 			creditCard.getExpirationYear(),
@@ -257,31 +420,27 @@ public class Stripe implements MerchantServicesProvider {
 		);
 	}
 
-	/** https://stripe.com/docs/api#create_charge */
-	private static Map<String,Object> makeShippingAddressParams(TransactionRequest transactionRequest, boolean update) {
-		Map<String,Object> shippingAddressParams = new HashMap<>();
-		addParam(update, shippingAddressParams, "line1", transactionRequest.getShippingStreetAddress1());
-		addParam(update, shippingAddressParams, "line2", transactionRequest.getShippingStreetAddress2());
-		addParam(update, shippingAddressParams, "city", transactionRequest.getShippingCity());
-		addParam(update, shippingAddressParams, "state", transactionRequest.getShippingState());
-		addParam(update, shippingAddressParams, "postal_code", transactionRequest.getShippingPostalCode());
-		addParam(update, shippingAddressParams, "country", transactionRequest.getShippingCountryCode());
-		return shippingAddressParams;
-	}
-
-	/** https://stripe.com/docs/api#create_charge */
+	/**
+	 * See <a href="https://stripe.com/docs/api/charges/create?lang=java">Create a charge</a>.
+	 */
 	private static Map<String,Object> makeShippingParams(TransactionRequest transactionRequest, CreditCard creditCard, boolean update) {
+		Map<String,Object> addressParams = new HashMap<>();
+		addParam(update, addressParams, "line1", transactionRequest.getShippingStreetAddress1());
+		addParam(update, addressParams, "city", transactionRequest.getShippingCity());
+		addParam(update, addressParams, "country", transactionRequest.getShippingCountryCode());
+		addParam(update, addressParams, "line2", transactionRequest.getShippingStreetAddress2());
+		addParam(update, addressParams, "postal_code", transactionRequest.getShippingPostalCode());
+		addParam(update, addressParams, "state", transactionRequest.getShippingState());
 		Map<String,Object> shippingParams = new HashMap<>();
-		addParam(update, shippingParams, "address", makeShippingAddressParams(transactionRequest, update));
+		addParam(update, shippingParams, "address", addressParams);
 		addParam(update, shippingParams, "name", CreditCard.getFullName(transactionRequest.getShippingFirstName(), transactionRequest.getShippingLastName()));
+		// Unused: carrier
 		// Phone cannot be in the shipping by itself
 		if(!shippingParams.isEmpty()) addParam(update, shippingParams, "phone", creditCard.getPhone());
 		// Unused: tracking_number
 		return shippingParams;
 	}
-	// </editor-fold>
 
-	// <editor-fold defaultstate="collapsed" desc="Error code conversion">
 	private static class ConvertedError {
 
 		private final TransactionResult.CommunicationResult communicationResult;
@@ -306,135 +465,514 @@ public class Stripe implements MerchantServicesProvider {
 	}
 
 	/**
-	 * Gets an exception message.
+	 * Converts Stripe errors to API errors.
+	 * <ol>
+	 * <li>See <a href="https://stripe.com/docs/api/errors?lang=java">Errors</a>.</li>
+	 * <li>See <a href="https://stripe.com/docs/api/errors/handling?lang=java">Handling errors</a>.</li>
+	 * </ol>
 	 */
-	private static String getMessage(Throwable t) {
-		String message = t.getMessage();
-		if(message==null || message.trim().isEmpty()) message = t.toString();
-		return message;
-	}
-
 	private static ConvertedError convertError(StripeException e) {
-		if(e instanceof AuthenticationException) {
+		String requestId = e.getRequestId(); // TODO: Return this via API?
+		Integer statusCode = e.getStatusCode();
+		StripeError stripeError = e.getStripeError();
+
+		// For some errors that could be handled programmatically, a short string indicating the error code reported.
+		String code = stripeError == null ? null : stripeError.getCode();
+		if(code == null) code = e.getCode();
+
+		// For card errors, the ID of the failed charge.
+		// TODO: Make this available through response API somehow?  Becoming a link in web forms?
+		String docUrl = stripeError == null ? null : stripeError.getDocUrl();
+
+		// A human-readable message providing more details about the error.
+		// For card errors, these messages can be shown to your users.
+		String message = stripeError == null ? null : stripeError.getMessage();
+		if(message == null) {
+			message = e.getMessage();
+			if(message == null || message.trim().isEmpty()) message = e.toString();
+		}
+
+		// The PaymentIntent object for errors returned on a request involving a PaymentIntent.
+		// TODO: What to do this paymentIntent?
+		PaymentIntent paymentIntent = stripeError == null ? null : stripeError.getPaymentIntent();
+
+		// The PaymentMethod object for errors returned on a request involving a PaymentMethod.
+		// TODO: What to do with paymentMethod?
+		PaymentMethod paymentMethod = stripeError == null ? null : stripeError.getPaymentMethod();
+
+		// The source object for errors returned on a request involving a source.
+		// TODO: What to do with paymentSource?
+		PaymentSource source = stripeError == null ? null : stripeError.getSource();
+
+		if(e instanceof RateLimitException) { // Is subclass of InvalidRequestException, must go before it
 			return new ConvertedError(
 				TransactionResult.CommunicationResult.GATEWAY_ERROR,
-				null,
-				TransactionResult.ErrorCode.PROVIDER_CONFIGURATION_ERROR,
-				getMessage(e),
+				Objects.toString(statusCode, "") + "," + Objects.toString(code, ""),
+				TransactionResult.ErrorCode.RATE_LIMIT,
+				message,
 				null
 			);
 		}
-		if(e instanceof InvalidRequestException) {
-			InvalidRequestException ire = (InvalidRequestException)e;
-			String param = ire.getParam();
-			return new ConvertedError(
-				TransactionResult.CommunicationResult.GATEWAY_ERROR,
-				param,
-				TransactionResult.ErrorCode.PROVIDER_CONFIGURATION_ERROR,
-				getMessage(e),
-				null
-			);
-		}
-		if(e instanceof APIConnectionException) {
-			return new ConvertedError(
-				TransactionResult.CommunicationResult.IO_ERROR,
-				null,
-				TransactionResult.ErrorCode.ERROR_TRY_AGAIN,
-				getMessage(e),
-				null
-			);
-		}
-		if(e instanceof CardException) {
-			CardException ce = (CardException)e;
-			String code = ce.getCode();
-			String param = ce.getParam();
-			// Convert to ErrorCode, see https://stripe.com/docs/api/java#errors
-			final TransactionResult.CommunicationResult communicationResult;
+		if(
+			e instanceof CardException
+			// // Is parent class of RateLimitException, must go after it
+			|| e instanceof InvalidRequestException
+		) {
+			// If the error is parameter-specific, the parameter related to the error.
+			// TODO: Map param to series of INVALID_... error codes
+			String param = stripeError == null ? null : stripeError.getParam();
+
+			// See https://stripe.com/docs/declines#issuer-declines
+			// See https://stripe.com/docs/declines/codes
+			String declineCode = stripeError == null ? null : stripeError.getDeclineCode();
+
+			// For card errors, the ID of the failed charge.
+			// TODO: What to do with charge?
+			String charge = stripeError == null ? null : stripeError.getCharge();
+
+			// Get values from specific exception types.  TODO: Necessary or will this always match StripeError?
+			if(e instanceof CardException) {
+				CardException ce = (CardException)e;
+				if(param == null) param = ce.getParam();
+				if(declineCode == null) declineCode = ce.getDeclineCode();
+				if(charge == null) charge = ce.getCharge();
+			} else if(e instanceof InvalidRequestException) {
+				InvalidRequestException ire = (InvalidRequestException)e;
+				if(param == null) param = ire.getParam();
+			}
+
+			// Convert to ErrorCode
+			// https://stripe.com/docs/error-codes
+			// errorCode is not used for declineReason, one or other only
 			final TransactionResult.ErrorCode errorCode;
 			final AuthorizationResult.DeclineReason declineReason;
-			if(
-				"incorrect_number".equals(code)
-				|| "invalid_number".equals(code)
+			if("amount_too_large".equals(code)) {
+				errorCode = TransactionResult.ErrorCode.AMOUNT_TOO_HIGH;
+				declineReason = null;
+			} else if("amount_too_small".equals(code)) {
+				errorCode = TransactionResult.ErrorCode.INVALID_AMOUNT;
+				declineReason = null;
+			} else if("api_key_expired".equals(code)) {
+				// TODO: Will this only be CardException, or should we convert based on code regardless of exception type?
+				errorCode = TransactionResult.ErrorCode.GATEWAY_SECURITY_GUIDELINES_NOT_MET;
+				declineReason = null;
+			} else if("balance_insufficient".equals(code)) {
+				errorCode = null;
+				declineReason = AuthorizationResult.DeclineReason.INSUFFICIENT_FUNDS;
+			} else if("card_declined".equals(code)) {
+				// Handle declined codes: https://stripe.com/docs/declines/codes
+				if("approve_with_id".equals(declineCode)) {
+					errorCode = TransactionResult.ErrorCode.ERROR_TRY_AGAIN_5_MINUTES;
+					declineReason = null;
+				} else if("call_issuer".equals(declineCode)) {
+					errorCode = null;
+					declineReason = AuthorizationResult.DeclineReason.UNKNOWN;
+				} else if("card_not_supported".equals(declineCode)) {
+					errorCode = TransactionResult.ErrorCode.CARD_TYPE_NOT_SUPPORTED;
+					declineReason = null;
+				} else if("card_velocity_exceeded".equals(declineCode)) {
+					errorCode = null;
+					declineReason = AuthorizationResult.DeclineReason.INSUFFICIENT_FUNDS;
+				} else if("currency_not_supported".equals(declineCode)) {
+					errorCode = TransactionResult.ErrorCode.CURRENCY_NOT_SUPPORTED;
+					declineReason = null;
+				} else if("do_not_honor".equals(declineCode)) {
+					errorCode = null;
+					declineReason = AuthorizationResult.DeclineReason.UNKNOWN;
+				} else if("do_not_try_again".equals(declineCode)) {
+					errorCode = null;
+					declineReason = AuthorizationResult.DeclineReason.UNKNOWN;
+				} else if("duplicate_transaction".equals(declineCode)) {
+					errorCode = TransactionResult.ErrorCode.DUPLICATE;
+					declineReason = null;
+				} else if("expired_card".equals(declineCode)) {
+					errorCode = null;
+					declineReason = AuthorizationResult.DeclineReason.EXPIRED_CARD;
+				} else if("fraudulent".equals(declineCode)) {
+					errorCode = null;
+					declineReason = AuthorizationResult.DeclineReason.FRAUD_DETECTED;
+				} else if("generic_decline".equals(declineCode)) {
+					errorCode = null;
+					declineReason = AuthorizationResult.DeclineReason.UNKNOWN;
+				} else if("incorrect_number".equals(declineCode)) {
+					errorCode = TransactionResult.ErrorCode.INVALID_CARD_NUMBER;
+					declineReason = null;
+				} else if("incorrect_cvc".equals(declineCode)) {
+					errorCode = null;
+					declineReason = AuthorizationResult.DeclineReason.CVV2_MISMATCH;
+				} else if("incorrect_pin".equals(declineCode)) {
+					errorCode = null;
+					declineReason = AuthorizationResult.DeclineReason.UNKNOWN; // TODO: New DeclineReason
+				} else if("incorrect_zip".equals(declineCode)) {
+					errorCode = null;
+					declineReason = AuthorizationResult.DeclineReason.AVS_FAILURE;
+				} else if("insufficient_funds".equals(declineCode)) {
+					errorCode = null;
+					declineReason = AuthorizationResult.DeclineReason.INSUFFICIENT_FUNDS;
+				} else if("invalid_account".equals(declineCode)) {
+					errorCode = null;
+					declineReason = AuthorizationResult.DeclineReason.UNKNOWN;
+				} else if("invalid_amount".equals(declineCode)) {
+					errorCode = TransactionResult.ErrorCode.INVALID_AMOUNT;
+					declineReason = null;
+				} else if("invalid_cvc".equals(declineCode)) {
+					errorCode = null;
+					declineReason = AuthorizationResult.DeclineReason.CVV2_MISMATCH;
+				} else if("invalid_expiry_year".equals(declineCode)) {
+					errorCode = TransactionResult.ErrorCode.INVALID_EXPIRATION_DATE;
+					declineReason = null;
+				} else if("invalid_number".equals(declineCode)) {
+					errorCode = TransactionResult.ErrorCode.INVALID_CARD_NUMBER;
+					declineReason = null;
+				} else if("invalid_pin".equals(declineCode)) {
+					errorCode = TransactionResult.ErrorCode.UNKNOWN; // TODO: New ErrorCode
+					declineReason = null;
+				} else if("issuer_not_available".equals(declineCode)) {
+					errorCode = TransactionResult.ErrorCode.ERROR_TRY_AGAIN_5_MINUTES;
+					declineReason = null;
+				} else if("lost_card".equals(declineCode)) {
+					errorCode = null;
+					declineReason = AuthorizationResult.DeclineReason.STOLEN_OR_LOST_CARD;
+				} else if("merchant_blacklist".equals(declineCode)) {
+					errorCode = null;
+					declineReason = AuthorizationResult.DeclineReason.UNKNOWN;
+				} else if("new_account_information_available".equals(declineCode)) {
+					errorCode = null;
+					declineReason = AuthorizationResult.DeclineReason.UNKNOWN;
+				} else if("no_action_taken".equals(declineCode)) {
+					errorCode = null;
+					declineReason = AuthorizationResult.DeclineReason.UNKNOWN;
+				} else if("not_permitted".equals(declineCode)) {
+					errorCode = null;
+					declineReason = AuthorizationResult.DeclineReason.UNKNOWN;
+				} else if("pickup_card".equals(declineCode)) {
+					errorCode = null;
+					declineReason = AuthorizationResult.DeclineReason.PICK_UP_CARD;
+				} else if("pin_try_exceeded".equals(declineCode)) {
+					errorCode = null;
+					declineReason = AuthorizationResult.DeclineReason.UNKNOWN; // TODO: New DeclineReason
+				} else if("processing_error".equals(declineCode)) {
+					errorCode = TransactionResult.ErrorCode.ERROR_TRY_AGAIN;
+					declineReason = null;
+				} else if("reenter_transaction".equals(declineCode)) {
+					errorCode = TransactionResult.ErrorCode.ERROR_TRY_AGAIN;
+					declineReason = null;
+				} else if("restricted_card".equals(declineCode)) {
+					errorCode = null;
+					declineReason = AuthorizationResult.DeclineReason.UNKNOWN;
+				} else if("revocation_of_all_authorizations".equals(declineCode)) {
+					errorCode = null;
+					declineReason = AuthorizationResult.DeclineReason.UNKNOWN;
+				} else if("revocation_of_authorization".equals(declineCode)) {
+					errorCode = null;
+					declineReason = AuthorizationResult.DeclineReason.UNKNOWN;
+				} else if("security_violation".equals(declineCode)) {
+					errorCode = TransactionResult.ErrorCode.GATEWAY_SECURITY_GUIDELINES_NOT_MET;
+					declineReason = null;
+				} else if("service_not_allowed".equals(declineCode)) {
+					errorCode = null;
+					declineReason = AuthorizationResult.DeclineReason.UNKNOWN;
+				} else if("stolen_card".equals(declineCode)) {
+					errorCode = null;
+					declineReason = AuthorizationResult.DeclineReason.STOLEN_OR_LOST_CARD;
+				} else if("stop_payment_order".equals(declineCode)) {
+					errorCode = null;
+					declineReason = AuthorizationResult.DeclineReason.UNKNOWN;
+				} else if("testmode_decline".equals(declineCode)) {
+					errorCode = TransactionResult.ErrorCode.PROVIDER_CONFIGURATION_ERROR;
+					declineReason = null;
+				} else if("transaction_not_allowed".equals(declineCode)) {
+					errorCode = null;
+					declineReason = AuthorizationResult.DeclineReason.UNKNOWN;
+				} else if("try_again_later".equals(declineCode)) {
+					errorCode = TransactionResult.ErrorCode.ERROR_TRY_AGAIN_5_MINUTES;
+					declineReason = null;
+				} else if("withdrawal_count_limit_exceeded".equals(declineCode)) {
+					errorCode = null;
+					declineReason = AuthorizationResult.DeclineReason.INSUFFICIENT_FUNDS;
+				} else {
+					errorCode = null;
+					declineReason = AuthorizationResult.DeclineReason.UNKNOWN;
+				}
+			} else if(
+				"charge_already_captured".equals(code)
+				|| "charge_already_refunded".equals(code)
+				|| "charge_disputed".equals(code)
 			) {
-				communicationResult = TransactionResult.CommunicationResult.GATEWAY_ERROR;
+				errorCode = TransactionResult.ErrorCode.DUPLICATE; // TODO: New ErrorCode?
+				declineReason = null;
+			} else if("charge_exceeds_source_limit".equals(code)) {
+				errorCode = null;
+				declineReason = AuthorizationResult.DeclineReason.VOLUME_EXCEEDED_1_DAY;
+			} else if("country_unsupported".equals(code)) {
+				errorCode = TransactionResult.ErrorCode.INVALID_CARD_COUNTRY_CODE;
+				declineReason = null;
+			} else if("email_invalid".equals(code)) {
+				errorCode = TransactionResult.ErrorCode.INVALID_CARD_EMAIL;
+				declineReason = null;
+			} else if("expired_card".equals(code)) {
+				errorCode = TransactionResult.ErrorCode.CARD_EXPIRED;
+				declineReason = null;
+			} else if("incorrect_address".equals(code)) {
+				errorCode = TransactionResult.ErrorCode.INVALID_CARD_ADDRESS;
+				declineReason = null;
+			} else if("incorrect_cvc".equals(code)) {
+				errorCode = TransactionResult.ErrorCode.INVALID_CARD_CODE;
+				declineReason = null;
+			} else if("incorrect_number".equals(code)) {
 				errorCode = TransactionResult.ErrorCode.INVALID_CARD_NUMBER;
+				declineReason = null;
+			} else if("incorrect_zip".equals(code)) {
+				errorCode = TransactionResult.ErrorCode.INVALID_CARD_POSTAL_CODE;
+				declineReason = null;
+			} else if("invalid_card_type".equals(code)) {
+				errorCode = TransactionResult.ErrorCode.CARD_TYPE_NOT_SUPPORTED;
+				declineReason = null;
+			} else if("invalid_charge_amount".equals(code)) {
+				errorCode = TransactionResult.ErrorCode.INVALID_AMOUNT;
+				declineReason = null;
+			} else if("invalid_cvc".equals(code)) {
+				errorCode = TransactionResult.ErrorCode.INVALID_CARD_CODE;
 				declineReason = null;
 			} else if(
 				"invalid_expiry_month".equals(code)
 				|| "invalid_expiry_year".equals(code)
 			) {
-				communicationResult = TransactionResult.CommunicationResult.GATEWAY_ERROR;
 				errorCode = TransactionResult.ErrorCode.INVALID_EXPIRATION_DATE;
 				declineReason = null;
-			} else if("invalid_cvc".equals(code)) {
-				communicationResult = TransactionResult.CommunicationResult.GATEWAY_ERROR;
-				errorCode = TransactionResult.ErrorCode.INVALID_CARD_CODE;
+			} else if("invalid_number".equals(code)) {
+				errorCode = TransactionResult.ErrorCode.INVALID_CARD_NUMBER;
 				declineReason = null;
-			} else if("expired_card".equals(code)) {
-				communicationResult = TransactionResult.CommunicationResult.SUCCESS;
-				errorCode = TransactionResult.ErrorCode.CARD_EXPIRED;
-				declineReason = AuthorizationResult.DeclineReason.EXPIRED_CARD;
-			} else if("incorrect_cvc".equals(code)) {
-				communicationResult = TransactionResult.CommunicationResult.SUCCESS;
-				errorCode = TransactionResult.ErrorCode.INVALID_CARD_CODE;
-				declineReason = AuthorizationResult.DeclineReason.CVV2_MISMATCH;
-			} else if("incorrect_zip".equals(code)) {
-				communicationResult = TransactionResult.CommunicationResult.SUCCESS;
-				errorCode = TransactionResult.ErrorCode.UNKNOWN;
-				declineReason = AuthorizationResult.DeclineReason.AVS_MISMATCH;
-			} else if("card_declined".equals(code)) {
-				communicationResult = TransactionResult.CommunicationResult.SUCCESS;
-				errorCode = TransactionResult.ErrorCode.UNKNOWN;
-				declineReason = AuthorizationResult.DeclineReason.UNKNOWN;
-			} else if("missing".equals(code)) {
-				communicationResult = TransactionResult.CommunicationResult.GATEWAY_ERROR;
+			} else if("livemode_mismatch".equals(code)) {
 				errorCode = TransactionResult.ErrorCode.PROVIDER_CONFIGURATION_ERROR;
 				declineReason = null;
+			} else if("missing".equals(code)) {
+				errorCode = TransactionResult.ErrorCode.PROVIDER_CONFIGURATION_ERROR;
+				declineReason = null;
+			} else if(
+				"parameter_invalid_empty".equals(code)
+				|| "parameter_invalid_integer".equals(code)
+				|| "parameter_invalid_string_blank".equals(code)
+				|| "parameter_invalid_string_empty".equals(code)
+				|| "parameter_missing".equals(code)
+			) {
+				// TODO: Map to specific "param"
+				errorCode = TransactionResult.ErrorCode.PROVIDER_CONFIGURATION_ERROR;
+				declineReason = null;
+			} else if(
+				"parameter_unknown".equals(code)
+				|| "parameters_exclusive".equals(code)
+			) {
+				// TODO: Map to specific "param"
+				errorCode = TransactionResult.ErrorCode.PROVIDER_CONFIGURATION_ERROR;
+				declineReason = null;
+			} else if("payment_method_unactivated".equals(code)) {
+				errorCode = TransactionResult.ErrorCode.CARD_TYPE_NOT_SUPPORTED;
+				declineReason = null;
+			} else if("platform_api_key_expired".equals(code)) {
+				errorCode = TransactionResult.ErrorCode.GATEWAY_SECURITY_GUIDELINES_NOT_MET;
+				declineReason = null;
+			} else if("postal_code_invalid".equals(code)) {
+				errorCode = TransactionResult.ErrorCode.INVALID_CARD_POSTAL_CODE;
+				declineReason = null;
 			} else if("processing_error".equals(code)) {
-				communicationResult = TransactionResult.CommunicationResult.GATEWAY_ERROR;
 				errorCode = TransactionResult.ErrorCode.ERROR_TRY_AGAIN;
 				declineReason = null;
 			} else if("rate_limit".equals(code)) {
-				communicationResult = TransactionResult.CommunicationResult.GATEWAY_ERROR;
-				errorCode = TransactionResult.ErrorCode.ERROR_TRY_AGAIN_5_MINUTES;
+				errorCode = TransactionResult.ErrorCode.RATE_LIMIT;
+				declineReason = null;
+			} else if("secret_key_required".equals(code)) {
+				errorCode = TransactionResult.ErrorCode.GATEWAY_SECURITY_GUIDELINES_NOT_MET;
+				declineReason = null;
+			} else if("shipping_calculation_failed".equals(code)) {
+				errorCode = TransactionResult.ErrorCode.INVALID_SHIPPING_AMOUNT;
+				declineReason = null;
+			} else if("state_unsupported".equals(code)) {
+				errorCode = TransactionResult.ErrorCode.INVALID_CARD_STATE;
+				declineReason = null;
+			} else if("tax_id_invalid".equals(code)) {
+				errorCode = TransactionResult.ErrorCode.INVALID_CUSTOMER_TAX_ID;
+				declineReason = null;
+			} else if("taxes_calculation_failed".equals(code)) {
+				errorCode = TransactionResult.ErrorCode.INVALID_TAX_AMOUNT;
+				declineReason = null;
+			} else if("testmode_charges_only".equals(code)) {
+				errorCode = TransactionResult.ErrorCode.PROVIDER_CONFIGURATION_ERROR;
+				declineReason = null;
+			} else if("tls_version_unsupported".equals(code)) {
+				errorCode = TransactionResult.ErrorCode.GATEWAY_SECURITY_GUIDELINES_NOT_MET;
+				declineReason = null;
+			} else if(
+				"token_already_used".equals(code)
+				|| "token_in_use".equals(code)
+			) {
+				errorCode = TransactionResult.ErrorCode.DUPLICATE;
 				declineReason = null;
 			} else {
-				communicationResult = TransactionResult.CommunicationResult.GATEWAY_ERROR;
 				errorCode = TransactionResult.ErrorCode.UNKNOWN;
 				declineReason = null;
 			}
-			if(communicationResult == TransactionResult.CommunicationResult.SUCCESS) {
-				if(declineReason == null) throw new AssertionError("declineReason required when communicationResult is SUCCESS");
-			} else if(communicationResult != TransactionResult.CommunicationResult.SUCCESS) {
-				if(declineReason != null) throw new AssertionError("declineReason not allowed when communicationResult is not SUCCESS");
-			}
 			return new ConvertedError(
-				communicationResult,
-				code,
+				declineReason == null ? TransactionResult.CommunicationResult.GATEWAY_ERROR : TransactionResult.CommunicationResult.SUCCESS,
+				Objects.toString(statusCode, "") + "," + Objects.toString(code, "") + "," + Objects.toString(param, "") + "," + Objects.toString(declineCode, ""),
 				errorCode,
-				getMessage(e),
+				message,
 				declineReason
 			);
 		}
-		if(e instanceof APIException) {
+		if(
+			e instanceof AuthenticationException
+			|| e instanceof PermissionException
+		) {
+			return new ConvertedError(
+				TransactionResult.CommunicationResult.GATEWAY_ERROR,
+				Objects.toString(statusCode, "") + "," + Objects.toString(code, ""),
+				TransactionResult.ErrorCode.PROVIDER_CONFIGURATION_ERROR,
+				message,
+				null
+			);
+		}
+		if(e instanceof OAuthException) {
+			OAuthError oAuthError = ((OAuthException)e).getOauthError();
+			String errorDescription = oAuthError == null ? null : oAuthError.getErrorDescription();
+			return new ConvertedError(
+				TransactionResult.CommunicationResult.GATEWAY_ERROR,
+				Objects.toString(statusCode, "") + "," + Objects.toString(code, "") + "," + Objects.toString(oAuthError == null ? null : oAuthError.getError(), ""),
+				TransactionResult.ErrorCode.PROVIDER_CONFIGURATION_ERROR,
+				errorDescription == null ? message : errorDescription,
+				null
+			);
+		}
+		if(e instanceof IdempotencyException) {
+			return new ConvertedError(
+				TransactionResult.CommunicationResult.GATEWAY_ERROR,
+				Objects.toString(statusCode, "") + "," + Objects.toString(code, ""),
+				TransactionResult.ErrorCode.DUPLICATE,
+				message,
+				null
+			);
+		}
+		if(
+			e instanceof ApiConnectionException
+			|| e instanceof ApiException
+			|| e instanceof EventDataObjectDeserializationException
+		) {
 			return new ConvertedError(
 				TransactionResult.CommunicationResult.IO_ERROR,
-				null,
+				Objects.toString(statusCode, "") + "," + Objects.toString(code, ""),
 				TransactionResult.ErrorCode.ERROR_TRY_AGAIN,
-				getMessage(e),
+				message,
+				null
+			);
+		}
+		if(e instanceof SignatureVerificationException) {
+			String sigHeader = ((SignatureVerificationException)e).getSigHeader();
+			return new ConvertedError(
+				TransactionResult.CommunicationResult.GATEWAY_ERROR,
+				Objects.toString(statusCode, "") + "," + Objects.toString(code, "") + "," + Objects.toString(sigHeader, ""),
+				TransactionResult.ErrorCode.GATEWAY_SECURITY_GUIDELINES_NOT_MET,
+				message,
 				null
 			);
 		}
 		// Note: This will not happen unless a new subclass of StripeException is introduced.
 		return new ConvertedError(
 			TransactionResult.CommunicationResult.GATEWAY_ERROR,
-			null,
+			Objects.toString(statusCode, "") + "," + Objects.toString(code, ""),
 			TransactionResult.ErrorCode.UNKNOWN,
-			getMessage(e),
+			message,
 			null
 		);
 	}
-	// </editor-fold>
+
+	private static AuthorizationResult.CvvResult getCvvResult(String providerCvvResult) {
+		if(providerCvvResult == null) {
+			return AuthorizationResult.CvvResult.CVV2_NOT_PROVIDED_BY_MERCHANT;
+		} else {
+			if("pass".equals(providerCvvResult)) {
+				return AuthorizationResult.CvvResult.MATCH;
+			} else if("fail".equals(providerCvvResult)) {
+				return AuthorizationResult.CvvResult.NO_MATCH;
+			} else if("unavailable".equals(providerCvvResult)) {
+				return AuthorizationResult.CvvResult.NOT_PROCESSED;
+			} else if("unchecked".equals(providerCvvResult)) {
+				return AuthorizationResult.CvvResult.NOT_SUPPORTED_BY_ISSUER;
+			} else {
+				return AuthorizationResult.CvvResult.UNKNOWN;
+			}
+		}
+	}
+
+	private static Tuple2<String,AuthorizationResult.AvsResult> getAvsResult(String addressResult, String zipResult) {
+		final String providerAvsResult;
+		final AuthorizationResult.AvsResult avsResult;
+		if(addressResult != null) {
+			if(zipResult != null) {
+				// Both address and ZIP
+				providerAvsResult = addressResult + "," + zipResult;
+				// ADDRESS_Y_ZIP_5
+				if(addressResult.equals("pass") && zipResult.equals("pass")) {
+					avsResult = AuthorizationResult.AvsResult.ADDRESS_Y_ZIP_5;
+				}
+				// ADDRESS_Y_ZIP_N
+				else if(addressResult.equals("pass")) {
+					avsResult = AuthorizationResult.AvsResult.ADDRESS_Y_ZIP_N;
+				}
+				// ADDRESS_N_ZIP_5
+				else if(zipResult.equals("pass")) {
+					avsResult = AuthorizationResult.AvsResult.ADDRESS_N_ZIP_5;
+				}
+				// ADDRESS_N_ZIP_N
+				else if(addressResult.equals("fail") && zipResult.equals("fail")) {
+					avsResult = AuthorizationResult.AvsResult.ADDRESS_N_ZIP_N;
+				}
+				// UNAVAILABLE
+				else if(addressResult.equals("unavailable") && zipResult.equals("unavailable")) {
+					avsResult = AuthorizationResult.AvsResult.UNAVAILABLE;
+				}
+				// SERVICE_NOT_SUPPORTED
+				else if(addressResult.equals("unchecked") && zipResult.equals("unchecked")) {
+					avsResult = AuthorizationResult.AvsResult.UNAVAILABLE;
+				} else {
+					avsResult = AuthorizationResult.AvsResult.UNKNOWN;
+				}
+			} else {
+				// Address only
+				providerAvsResult = addressResult + ",";
+				if("pass".equals(addressResult)) {
+					avsResult = AuthorizationResult.AvsResult.ADDRESS_Y_ZIP_N;
+				} else if("fail".equals(addressResult)) {
+					avsResult = AuthorizationResult.AvsResult.ADDRESS_N_ZIP_N;
+				} else if("unavailable".equals(addressResult)) {
+					avsResult = AuthorizationResult.AvsResult.UNAVAILABLE;
+				} else if("unchecked".equals(addressResult)) {
+					avsResult = AuthorizationResult.AvsResult.SERVICE_NOT_SUPPORTED;
+				} else {
+					avsResult = AuthorizationResult.AvsResult.UNKNOWN;
+				}
+			}
+		} else {
+			if(zipResult != null) {
+				// ZIP only
+				providerAvsResult = "," + zipResult;
+				if("pass".equals(zipResult)) {
+					avsResult = AuthorizationResult.AvsResult.ADDRESS_N_ZIP_5;
+				} else if("fail".equals(zipResult)) {
+					avsResult = AuthorizationResult.AvsResult.ADDRESS_N_ZIP_N;
+				} else if("unavailable".equals(zipResult)) {
+					avsResult = AuthorizationResult.AvsResult.UNAVAILABLE;
+				} else if("unchecked".equals(zipResult)) {
+					avsResult = AuthorizationResult.AvsResult.SERVICE_NOT_SUPPORTED;
+				} else {
+					avsResult = AuthorizationResult.AvsResult.UNKNOWN;
+				}
+			} else {
+				providerAvsResult = ",";
+				avsResult = AuthorizationResult.AvsResult.ADDRESS_NOT_PROVIDED;
+			}
+		}
+		return new Tuple2<>(providerAvsResult, avsResult);
+	}
 
 	@Override
 	public SaleResult sale(TransactionRequest transactionRequest, CreditCard creditCard) {
@@ -457,166 +995,264 @@ public class Stripe implements MerchantServicesProvider {
 		return saleOrAuthorize(transactionRequest, creditCard, false);
 	}
 
+	/**
+	 * Gets the ID of the default PaymentMethod for a Customer, setting an existing PaymentMethod to default when needed.
+	 * This can help recover from a failure between attaching a new PaymentMethod and setting it as the default.
+	 * <ol>
+	 * <li>See <a href="https://stripe.com/docs/api/payment_methods/list?lang=java">List a Customer's PaymentMethods</a>.</li>
+	 * <li>See <a href="https://stripe.com/docs/api/customers/update?lang=java">Update a customer</a>.</li>
+	 * </ol>
+	 */
+	private Tuple2<Customer,String> getDefaultPaymentMethodId(Customer customer) throws StripeException {
+		String paymentMethodId = customer.getInvoiceSettings().getDefaultPaymentMethod();
+		String defaultSource = customer.getDefaultSource();
+		// Ignore when is a default source, which should be updated through the legacy card API
+		if(
+			paymentMethodId != null
+			&& paymentMethodId.equals(defaultSource)
+		) {
+			paymentMethodId = null;
+		}
+		if(paymentMethodId == null) {
+			// Find all attached
+			PaymentMethodCollection paymentMethodCollection = PaymentMethod.list(
+				PaymentMethodListParams.builder()
+					.setCustomer(customer.getId())
+					.setType(PaymentMethodListParams.Type.CARD)
+					.build(),
+				options
+			);
+			if(paymentMethodCollection != null) {
+				List<PaymentMethod> paymentMethods = paymentMethodCollection.getData();
+				if(paymentMethods != null && !paymentMethods.isEmpty()) {
+					// Set whatever the first one that is not from the legacy card API
+					for(PaymentMethod paymentMethod : paymentMethods) {
+						String id = paymentMethod.getId();
+						if(!id.equals(defaultSource)) {
+							paymentMethodId = id;
+							customer = customer.update(
+								CustomerUpdateParams.builder()
+									.setInvoiceSettings(
+										CustomerUpdateParams.InvoiceSettings.builder()
+											.setDefaultPaymentMethod(paymentMethodId)
+											.build()
+									)
+									.build(),
+								options
+							);
+							break;
+						}
+					}
+				}
+			}
+		}
+		return new Tuple2<>(customer, paymentMethodId);
+	}
+
+	/**
+	 * <ol>
+	 * <li>See <a href="https://stripe.com/docs/api/payment_intents/create?lang=java">Create a PaymentIntent</a>.</li>
+	 * <li>See <a href="https://stripe.com/docs/api/payment_intents/confirm?lang=java">Confirm a PaymentIntent</a>.</li>
+	 * <li>See <a href="https://stripe.com/docs/payments/payment-intents/off-session?lang=java">Off-session Payments with Payment Intents</a>.</li>
+	 * <li>See <a href="https://stripe.com/docs/payments/payment-intents/quickstart?lang=java#manual-confirmation-flow">Manual confirmation quickstart</a>.</li>
+	 * <li>See <a href="https://stripe.com/docs/payments/payment-intents/usage?lang=java#paymentintent-status-overview">PaymentIntent status overview</a>.</li>
+	 * <li>See <a href="https://stripe.com/docs/payments/payment-intents/usage?lang=java#separate-auth-capture">Placing a hold on a card without charging</a>.</li>
+	 * <li>See <a href="https://stripe.com/docs/payments/payment-methods?lang=java#compatibility">Payment Methods Overview — Compatibility with Sources and Cards</a>.</li>
+	 * </ol>
+	 */
 	private AuthorizationResult saleOrAuthorize(TransactionRequest transactionRequest, CreditCard creditCard, boolean capture) {
 		// Test mode not currently supported
 		if(transactionRequest.getTestMode()) {
 			throw new UnsupportedOperationException("Test mode not currently supported");
 		}
-		// Convert amount into smallest unit
-		BigDecimal totalAmount = transactionRequest.getTotalAmount();
-		Currency currency = transactionRequest.getCurrency();
-		int currencyDigits = currency.getDefaultFractionDigits();
-		if(currencyDigits < 0) throw new AssertionError("currencyDigits < 0: " + currencyDigits);
-		BigInteger amount = totalAmount.scaleByPowerOfTen(currencyDigits).toBigIntegerExact();
-		// Create the Charge
-		// https://stripe.com/docs/api#create_charge
-		Map<String,Object> chargeParams = new HashMap<>();
-		addParam(false, chargeParams, "amount", amount);
-		addParam(false, chargeParams, "currency", currency.getCurrencyCode());
-		if(creditCard.getProviderUniqueId() != null) {
-			// Is a stored card
-			addParam(false, chargeParams, "customer", creditCard.getProviderUniqueId());
-		} else {
-			// Is a new card
-			addParam(false, chargeParams, "card", makeCardParams(creditCard, false));
-		}
-		addParam(false, chargeParams, "description", transactionRequest.getDescription());
-		addParam(false, chargeParams, "metadata", makeMetadata(transactionRequest, creditCard, false));
-		addParam(false, chargeParams, "capture", capture);
-		if(transactionRequest.getOrderNumber() != null) {
-			String combined = STATEMENT_DESCRIPTOR_PREFIX + transactionRequest.getOrderNumber();
-			if(combined.length() <= MAX_STATEMENT_DESCRIPTOR_LEN) addParam(false, chargeParams, "statement_descriptor", combined);
-		}
-		if(transactionRequest.getEmailCustomer()) {
-			addParam(false, chargeParams, "receipt_email", creditCard.getEmail());
-		}
-		// Unused: application_fee
-		addParam(false, chargeParams, "shipping", makeShippingParams(transactionRequest, creditCard, false));
 		try {
-			Charge charge = Charge.create(chargeParams, options);
-			Card card = charge.getCard();
+			String paymentMethodId;
+			PaymentIntent paymentIntent;
+			{
+				// Convert amount into smallest unit
+				BigDecimal totalAmount = transactionRequest.getTotalAmount();
+				Currency currency = transactionRequest.getCurrency();
+				int currencyDigits = currency.getDefaultFractionDigits();
+				if(currencyDigits < 0) throw new AssertionError("currencyDigits < 0: " + currencyDigits);
+				BigInteger amount = totalAmount.scaleByPowerOfTen(currencyDigits).toBigIntegerExact();
+				// Create the PaymentIntent
+				Map<String,Object> paymentIntentParams = new HashMap<>();
+				paymentIntentParams.put("amount", amount);
+				paymentIntentParams.put("currency", currency.getCurrencyCode());
+				// Unused: application_fee_amount
+				paymentIntentParams.put("capture_method", capture ? "automatic" : "manual");
+				paymentIntentParams.put("confirm", true);
+				paymentIntentParams.put("confirmation_method", "manual");
+				String customerId = creditCard.getProviderUniqueId();
+				if(customerId != null) {
+					// Is a stored card
+					paymentIntentParams.put("customer", customerId);
+				}
+				addParam(false, paymentIntentParams, "description", transactionRequest.getDescription());
+				addParam(false, paymentIntentParams, "metadata", makePaymentIntentMetadata(transactionRequest, creditCard, false));
+				// Unused: on_behalf_of
+				if(customerId != null) {
+					// Is a stored card
+					Customer customer;
+					{
+						Tuple2<Customer,String> combined = getDefaultPaymentMethodId(Customer.retrieve(customerId, options));
+						customer = combined.getElement1();
+						paymentMethodId = combined.getElement2();
+					}
+					if(paymentMethodId == null) {
+						// Look for a default source for backward compatibility
+						paymentMethodId = customer.getDefaultSource();
+					}
+				} else {
+					// Is a new card
+					paymentMethodId = PaymentMethod.create(makePaymentMethodParams(creditCard), options).getId();
+				}
+				paymentIntentParams.put("payment_method", paymentMethodId);
+				// Unused: payment_method_types
+				if(transactionRequest.getEmailCustomer()) {
+					// TODO: The actual sending of email is configured on the Stripe account.  How to control through API?
+					addParam(false, paymentIntentParams, "receipt_email", creditCard.getEmail());
+				}
+				// Unused: save_payment_method
+				addParam(false, paymentIntentParams, "shipping", makeShippingParams(transactionRequest, creditCard, false));
+				// Unused: source
+				String orderNumber = transactionRequest.getOrderNumber();
+				if(orderNumber != null) {
+					orderNumber = orderNumber.trim();
+					if(!orderNumber.isEmpty()) {
+						// Avoid "The statement descriptor must contain at least one alphabetic character."
+						boolean hasAlpha = false;
+						for(int i = 0, len = orderNumber.length(); i < len; ) {
+							int codepoint = orderNumber.codePointAt(i);
+							if(Character.isAlphabetic(codepoint)) {
+								hasAlpha = true;
+								break;
+							}
+							i += Character.charCount(codepoint);
+						}
+						String statement_descriptor = hasAlpha ? orderNumber : (STATEMENT_DESCRIPTOR_PREFIX + orderNumber);
+						if(statement_descriptor.length() <= MAX_STATEMENT_DESCRIPTOR_LEN) {
+							addParam(false, paymentIntentParams, "statement_descriptor", statement_descriptor);
+						}
+					}
+				}
+				// Unused: transfer_data
+				// Unused: transfer_group
+				paymentIntent = PaymentIntent.create(paymentIntentParams, options); // TODO: last_payment_error becomes StripeError in exception?
+			}
+
+			// Find the paymentMethod from the charges
+			ChargeCollection charges = paymentIntent.getCharges();
+			List<Charge> chargeList = charges == null ? null : charges.getData();
+			Charge.PaymentMethodDetails paymentMethodDetails = null;
+			if(chargeList != null) {
+				for(Charge charge : chargeList) {
+					if(paymentMethodId.equals(charge.getPaymentMethod())) {
+						paymentMethodDetails = charge.getPaymentMethodDetails();
+						break;
+					}
+				}
+			}
+			Charge.PaymentMethodDetails.Card card = paymentMethodDetails == null ? null : paymentMethodDetails.getCard();
+			Charge.PaymentMethodDetails.Card.Checks cardChecks = card == null ? null : card.getChecks();
+			// CVC
+			final String providerCvvResult = cardChecks == null ? null : cardChecks.getCvcCheck();
+			final AuthorizationResult.CvvResult cvvResult;
+			cvvResult = getCvvResult(providerCvvResult);
 			// AVS
 			final String providerAvsResult;
 			final AuthorizationResult.AvsResult avsResult;
-			// <editor-fold defaultstate="collapsed" desc="AVS conversion">
 			{
-				String addressResult = card.getAddressLine1Check();
-				String zipResult = card.getAddressZipCheck();
-				if(addressResult != null) {
-					if(zipResult != null) {
-						// Both address and ZIP
-						providerAvsResult = addressResult + "," + zipResult;
-						// ADDRESS_Y_ZIP_5
-						if(addressResult.equals("pass") && zipResult.equals("pass")) {
-							avsResult = AuthorizationResult.AvsResult.ADDRESS_Y_ZIP_5;
-						}
-						// ADDRESS_Y_ZIP_N
-						else if(addressResult.equals("pass")) {
-							avsResult = AuthorizationResult.AvsResult.ADDRESS_Y_ZIP_N;
-						}
-						// ADDRESS_N_ZIP_5
-						else if(zipResult.equals("pass")) {
-							avsResult = AuthorizationResult.AvsResult.ADDRESS_N_ZIP_5;
-						}
-						// ADDRESS_N_ZIP_N
-						else if(addressResult.equals("fail") && zipResult.equals("fail")) {
-							avsResult = AuthorizationResult.AvsResult.ADDRESS_N_ZIP_N;
-						}
-						// UNAVAILABLE
-						else if(addressResult.equals("unavailable") && zipResult.equals("unavailable")) {
-							avsResult = AuthorizationResult.AvsResult.UNAVAILABLE;
-						}
-						// SERVICE_NOT_SUPPORTED
-						else if(addressResult.equals("unchecked") && zipResult.equals("unchecked")) {
-							avsResult = AuthorizationResult.AvsResult.UNAVAILABLE;
-						} else {
-							avsResult = AuthorizationResult.AvsResult.UNKNOWN;
-						}
-					} else {
-						// Address only
-						providerAvsResult = addressResult + ",";
-						if("pass".equals(addressResult)) {
-							avsResult = AuthorizationResult.AvsResult.ADDRESS_Y_ZIP_N;
-						} else if("fail".equals(addressResult)) {
-							avsResult = AuthorizationResult.AvsResult.ADDRESS_N_ZIP_N;
-						} else if("unavailable".equals(addressResult)) {
-							avsResult = AuthorizationResult.AvsResult.UNAVAILABLE;
-						} else if("unchecked".equals(addressResult)) {
-							avsResult = AuthorizationResult.AvsResult.SERVICE_NOT_SUPPORTED;
-						} else {
-							avsResult = AuthorizationResult.AvsResult.UNKNOWN;
-						}
-					}
-				} else {
-					if(zipResult != null) {
-						// ZIP only
-						providerAvsResult = "," + zipResult;
-						if("pass".equals(zipResult)) {
-							avsResult = AuthorizationResult.AvsResult.ADDRESS_N_ZIP_5;
-						} else if("fail".equals(zipResult)) {
-							avsResult = AuthorizationResult.AvsResult.ADDRESS_N_ZIP_N;
-						} else if("unavailable".equals(zipResult)) {
-							avsResult = AuthorizationResult.AvsResult.UNAVAILABLE;
-						} else if("unchecked".equals(zipResult)) {
-							avsResult = AuthorizationResult.AvsResult.SERVICE_NOT_SUPPORTED;
-						} else {
-							avsResult = AuthorizationResult.AvsResult.UNKNOWN;
-						}
-					} else {
-						providerAvsResult = ",";
-						avsResult = AuthorizationResult.AvsResult.ADDRESS_NOT_PROVIDED;
-					}
-				}
+				Tuple2<String,AuthorizationResult.AvsResult> combined = getAvsResult(
+					cardChecks == null ? null : cardChecks.getAddressLine1Check(),
+					cardChecks == null ? null : cardChecks.getAddressPostalCodeCheck()
+				);
+				providerAvsResult = combined.getElement1();
+				avsResult = combined.getElement2();
 			}
-			// </editor-fold>
-			// CVC
-			final String providerCvvResult = card.getCvcCheck();
-			final AuthorizationResult.CvvResult cvvResult;
-			// <editor-fold defaultstate="collapsed" desc="CVC conversion">
-			if(providerCvvResult == null) {
-				cvvResult = AuthorizationResult.CvvResult.CVV2_NOT_PROVIDED_BY_MERCHANT;
-			} else {
-				if("pass".equals(providerCvvResult)) {
-					cvvResult = AuthorizationResult.CvvResult.MATCH;
-				} else if("fail".equals(providerCvvResult)) {
-					cvvResult = AuthorizationResult.CvvResult.NO_MATCH;
-				} else if("unavailable".equals(providerCvvResult)) {
-					cvvResult = AuthorizationResult.CvvResult.NOT_PROCESSED;
-				} else if("unchecked".equals(providerCvvResult)) {
-					cvvResult = AuthorizationResult.CvvResult.NOT_SUPPORTED_BY_ISSUER;
-				} else {
-					cvvResult = AuthorizationResult.CvvResult.UNKNOWN;
-				}
-			}
-			// </editor-fold>
 			// TODO: FraudDetails fraudDetails = charge.getFraudDetails();
-			// Trip "ch_" from charge ID from approval code
-			String approvalCode = charge.getId();
-			if(approvalCode != null && approvalCode.startsWith("ch_")) approvalCode = approvalCode.substring(3);
-			return new AuthorizationResult(
-				getProviderId(),
-				TransactionResult.CommunicationResult.SUCCESS,
-				null, // providerErrorCode
-				null, // errorCode
-				null, // providerErrorMessage
-				charge.getId(),
-				null, // providerApprovalResult
-				AuthorizationResult.ApprovalResult.APPROVED,
-				null, // providerDeclineReason
-				null, // declineReason
-				null, // providerReviewReason
-				null, // reviewReason
-				providerCvvResult,
-				cvvResult,
-				providerAvsResult,
-				avsResult,
-				approvalCode // approvalCode
-			);
+			// TODO: review reason
+			// TODO: check "paid"?
+
+			// https://stripe.com/docs/payments/payment-intents/usage?lang=java#paymentintent-status-overview
+			String status = paymentIntent.getStatus();
+			
+			if(
+				// Must be "succeeded" when capturing or "requires_capture" for auth-only
+				(capture ? "succeeded" : "requires_capture").equals(status)
+			) {
+				final String approvalCode;
+				if(chargeList == null || chargeList.isEmpty()) {
+					approvalCode = null;
+				} else if(chargeList.size() == 1) {
+					approvalCode = chargeList.get(0).getId();
+				} else {
+					// Append into comma-separated list for multiple charges
+					StringBuilder aprs = new StringBuilder();
+					for(Charge charge : chargeList) {
+						String apr = chargeList.get(0).getId();
+						if(apr != null) {
+							if(aprs.length() > 0) aprs.append(',');
+							aprs.append(apr);
+						}
+					}
+					approvalCode = aprs.length() == 0 ? null : aprs.toString();
+				}
+				return new AuthorizationResult(
+					providerId,
+					TransactionResult.CommunicationResult.SUCCESS,
+					null, // providerErrorCode
+					null, // errorCode
+					null, // providerErrorMessage
+					paymentIntent.getId(),
+					status, // providerApprovalResult
+					AuthorizationResult.ApprovalResult.APPROVED,
+					null, // providerDeclineReason
+					null, // declineReason
+					null, // providerReviewReason
+					null, // reviewReason
+					providerCvvResult,
+					cvvResult,
+					providerAvsResult,
+					avsResult,
+					approvalCode
+				);
+			} else {
+				// All other statuses as "Hold"
+				// requires_payment_method: Should not happen since we provided a payment_method
+				// requires_confirmation: Should not happen since we confirm=true
+				// requires_action
+				// processing
+				// requires_capture: Should not happen since we set capture_method=automatic
+				// canceled: Should not ever be canceled
+
+				// TODO: Need a way to pass url or map back for action, this will require API changes
+				PaymentIntent.NextAction nextAction = paymentIntent.getNextAction();
+				return new AuthorizationResult(
+					providerId,
+					TransactionResult.CommunicationResult.SUCCESS,
+					null, // providerErrorCode
+					null, // errorCode
+					null, // providerErrorMessage
+					paymentIntent.getId(),
+					nextAction == null ? status : nextAction.getType(), // providerApprovalResult
+					AuthorizationResult.ApprovalResult.HOLD,
+					null, // providerDeclineReason
+					null, // declineReason
+					null, // TODO: providerReviewReason
+					null, // TODO: reviewReason
+					providerCvvResult,
+					cvvResult,
+					providerAvsResult,
+					avsResult,
+					null // approvalCode
+				);
+			}
 		} catch(StripeException e) {
 			ConvertedError converted = convertError(e);
 			if(converted.declineReason == null) {
 				return new AuthorizationResult(
-					getProviderId(),
+					providerId,
 					converted.communicationResult,
 					converted.providerErrorCode,
 					converted.errorCode,
@@ -637,7 +1273,7 @@ public class Stripe implements MerchantServicesProvider {
 			} else {
 				// Declined
 				return new AuthorizationResult(
-					getProviderId(),
+					providerId,
 					converted.communicationResult,
 					null, // providerErrorCode
 					null, // errorCode
@@ -659,31 +1295,64 @@ public class Stripe implements MerchantServicesProvider {
 		}
 	}
 
+	/**
+	 * {@inheritDoc}
+	 * <p>
+	 * See <a href="https://stripe.com/docs/api/payment_intents/capture?lang=java">Capture a PaymentIntent</a>.
+	 * </p>
+	 */
 	@Override
 	public CaptureResult capture(AuthorizationResult authorizationResult) {
 		String id = authorizationResult.getProviderUniqueId();
 		try {
-			authorizationResult.getProviderUniqueId();
-			Charge ch = Charge.retrieve(id, options);
-			ch.capture(options);
-			return new CaptureResult(
-				providerId,
-				TransactionResult.CommunicationResult.SUCCESS,
-				null,
-				null,
-				null,
-				id
-			);
+			PaymentIntent intent = PaymentIntent.retrieve(id, options);
+			Map<String,Object> params = new HashMap<>();
+			// Unused: amount_to_capture
+			// Unused: application_fee_amount
+			PaymentIntent captured = intent.capture(params, options);
+			String status = captured.getStatus();
+			if("succeeded".equals(status)) {
+				return new CaptureResult(
+					providerId,
+					TransactionResult.CommunicationResult.SUCCESS,
+					null,
+					null,
+					null,
+					id
+				);
+			} else {
+				// We expect an exception, but will handle unexpected status as a failure
+				return new CaptureResult(
+					providerId,
+					TransactionResult.CommunicationResult.GATEWAY_ERROR,
+					status,
+					TransactionResult.ErrorCode.APPROVED_BUT_SETTLEMENT_FAILED,
+					null,
+					id
+				);
+			}
 		} catch(StripeException e) {
 			ConvertedError converted = convertError(e);
-			return new CaptureResult(
-				providerId,
-				converted.communicationResult,
-				converted.providerErrorCode,
-				converted.errorCode,
-				converted.providerErrorMessage,
-				id
-			);
+			if(converted.declineReason == null) {
+				return new CaptureResult(
+					providerId,
+					converted.communicationResult,
+					converted.providerErrorCode,
+					converted.errorCode,
+					converted.providerErrorMessage,
+					id
+				);
+			} else {
+				// Declined should not happen here, since any decline is expected to happen on authorize
+				return new CaptureResult(
+					providerId,
+					TransactionResult.CommunicationResult.GATEWAY_ERROR, // Decline are SUCCESS, need to convert to GATEWAY_ERROR
+					converted.providerErrorCode,
+					TransactionResult.ErrorCode.APPROVED_BUT_SETTLEMENT_FAILED,
+					converted.providerErrorMessage,
+					id
+				);
+			}
 		}
 	}
 
@@ -704,15 +1373,42 @@ public class Stripe implements MerchantServicesProvider {
 		return true;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 * <ol>
+	 * <li>See <a href="https://stripe.com/docs/api/customers/create?lang=java">Create a customer</a>.</li>
+	 * <li>See <a href="https://stripe.com/docs/api/payment_methods/create?lang=java">Create a PaymentMethod</a>.</li>
+	 * <li>See <a href="https://stripe.com/docs/api/payment_methods/attach?lang=java">Attach a PaymentMethod to a Customer</a>.</li>
+	 * <li>See <a href="https://stripe.com/docs/api/customers/update?lang=java">Update a customer</a>.</li>
+	 * </ol>
+	 */
 	@Override
 	public String storeCreditCard(CreditCard creditCard) throws IOException {
-		// Create the Customer
-		Map<String,Object> customerParams = new HashMap<>();
-		addParam(false, customerParams, "card", makeCardParams(creditCard, false));
-		addCustomerParams(creditCard, false, customerParams);
-		// Make API call
 		try {
-			Customer customer = Customer.create(customerParams, options);
+			// Create the Customer
+			Customer customer;
+			{
+				Map<String,Object> customerParams = new HashMap<>();
+				addCustomerParams(creditCard, false, customerParams);
+				customer = Customer.create(customerParams, options);
+			}
+			// Create the payment method
+			PaymentMethod paymentMethod = PaymentMethod.create(makePaymentMethodParams(creditCard), options);
+			// Attach the payment method to the customer
+			// TODO: During attach, AVS and CVC checks are performed.  What to do here?  Error, return, log and fail on payment? Probably API 2.0 allow CVV and AVS at this point, too
+			paymentMethod.attach(
+				Collections.singletonMap("customer", (Object)customer.getId()),
+				options
+			);
+			// Set as default payment method
+			customer = customer.update(
+				Collections.singletonMap(
+					"invoice_settings",
+					(Object)Collections.singletonMap("default_payment_method", paymentMethod.getId())
+				),
+				options
+			);
+			// Return the Id of the new customer
 			return customer.getId();
 		} catch(StripeException e) {
 			ConvertedError converted = convertError(e);
@@ -721,28 +1417,70 @@ public class Stripe implements MerchantServicesProvider {
 		}
 	}
 
+	/**
+	 * {@inheritDoc}
+	 * <ol>
+	 * <li>See <a href="https://stripe.com/docs/api/customers/update?lang=java">Update a customer</a>.</li>
+	 * <li>See <a href="https://stripe.com/docs/api/payment_methods/update?lang=java">Update a PaymentMethod</a>.</li>
+	 * <li>See <a href="https://stripe.com/docs/api/cards/delete?lang=java">Delete a card</a>.</li>
+	 * <li>See <a href="https://stripe.com/docs/api/cards/update?lang=java">Update a card</a>.</li>
+	 * </ol>
+	 */
 	@Override
 	public void updateCreditCard(CreditCard creditCard) throws IOException {
-		// Update the Customer
-		Map<String,Object> updateCustomerParams = new HashMap<>();
-		addCustomerParams(creditCard, true, updateCustomerParams);
-		// Update the default Card
-		Map<String,Object> updateCardParams = new HashMap<>();
-		addCardParams(creditCard, true, updateCardParams);
 		try {
+			// Find the customer
 			Customer customer = Customer.retrieve(creditCard.getProviderUniqueId(), options);
-			customer.update(updateCustomerParams, options);
-			CustomerCardCollection cards = customer.getCards();
-			Card defaultCard = cards.retrieve(customer.getDefaultCard(), options);
-			defaultCard.update(updateCardParams, options);
+			// Update the Customer
+			Map<String,Object> customerParams = new HashMap<>();
+			addCustomerParams(creditCard, true, customerParams);
+			customer = customer.update(customerParams, options);
+
+			String paymentMethodId;
+			{
+				Tuple2<Customer,String> combined = getDefaultPaymentMethodId(customer);
+				customer = combined.getElement1();
+				paymentMethodId = combined.getElement2();
+			}
+			String defaultSource = customer.getDefaultSource();
+			if(paymentMethodId != null) {
+				// Find the PaymentMethod
+				PaymentMethod defaultPaymentMethod = PaymentMethod.retrieve(paymentMethodId, options);
+				// Update PaymentMethod
+				Map<String,Object> paymentMethodParams = new HashMap<>();
+				addPaymentMethodParams(creditCard, paymentMethodParams);
+				defaultPaymentMethod.update(paymentMethodParams, options);
+				// Check for incomplete conversion to PaymentMethod
+				if(defaultSource != null) {
+					// Incomplete conversion to PaymentMethod, remove old default source
+					Card defaultCard = (Card)customer.getSources().retrieve(defaultSource, options);
+					defaultCard.delete(options);
+				}
+			} else {
+				// Find the default Card
+				Card defaultCard = (Card)customer.getSources().retrieve(defaultSource, options);
+				// Update the default Card
+				Map<String,Object> cardParams = new HashMap<>();
+				addCardParams(creditCard, true, cardParams);
+				defaultCard.update(cardParams, options);
+			}
 		} catch(StripeException e) {
 			ConvertedError converted = convertError(e);
 			// TODO: Throw ErrorCodeException to provide more details
 			throw new LocalizedIOException(e, accessor, "MerchantServicesProvider.updateCreditCardNumberAndExpiration.notSuccessful");
 		}
-
 	}
 
+	/**
+	 * {@inheritDoc}
+	 * <ol>
+	 * <li>See <a href="https://stripe.com/docs/api/payment_methods/create?lang=java">Create a PaymentMethod</a>.</li>
+	 * <li>See <a href="https://stripe.com/docs/api/payment_methods/attach?lang=java">Attach a PaymentMethod to a Customer</a>.</li>
+	 * <li>See <a href="https://stripe.com/docs/api/customers/update?lang=java">Update a customer</a>.</li>
+	 * <li>See <a href="https://stripe.com/docs/api/payment_methods/detach?lang=java">Detach a PaymentMethod from a Customer</a>.</li>
+	 * <li>See <a href="https://stripe.com/docs/api/cards/delete?lang=java">Delete a card</a>.</li>
+	 * </ol>
+	 */
 	@Override
 	public void updateCreditCardNumberAndExpiration(
 		CreditCard creditCard,
@@ -751,20 +1489,56 @@ public class Stripe implements MerchantServicesProvider {
 		short expirationYear,
 		String cardCode
 	) throws IOException {
-		// Replace the default Card
-		Map<String,Object> cardParams = makeCardParams(
-			creditCard,
-			true,
-			cardNumber,
-			expirationMonth,
-			expirationYear,
-			cardCode!=null ? CreditCard.numbersOnly(cardCode) : creditCard.getCardCode()
-		);
-		Map<String,Object> updateParams = new HashMap<>();
-		addParam(true, updateParams, "card", cardParams);
 		try {
+			// Find the customer
 			Customer customer = Customer.retrieve(creditCard.getProviderUniqueId(), options);
-			customer.update(updateParams, options);
+
+			String paymentMethodId;
+			{
+				Tuple2<Customer,String> combined = getDefaultPaymentMethodId(customer);
+				customer = combined.getElement1();
+				paymentMethodId = combined.getElement2();
+			}
+			String defaultSource = customer.getDefaultSource();
+
+			// Create the payment method
+			PaymentMethod paymentMethod = PaymentMethod.create(
+				makePaymentMethodParams(
+					creditCard,
+					cardNumber,
+					expirationMonth,
+					expirationYear,
+					cardCode != null ? CreditCard.numbersOnly(cardCode) : creditCard.getCardCode()
+				),
+				options
+			);
+			// Attach the payment method to the customer
+			// TODO: During attach, AVS and CVC checks are performed.  What to do here?  Error, return, log and fail on payment? Probably API 2.0 allow CVV and AVS at this point, too
+			paymentMethod.attach(
+				Collections.singletonMap("customer", (Object)customer.getId()),
+				options
+			);
+			// Set as default payment method
+			customer = customer.update(
+				Collections.singletonMap(
+					"invoice_settings",
+					(Object)Collections.singletonMap("default_payment_method", paymentMethod.getId())
+				),
+				options
+			);
+
+			if(paymentMethodId != null) {
+				// Find old PaymentMethod
+				PaymentMethod oldPaymentMethod = PaymentMethod.retrieve(paymentMethodId, options);
+				// Detach old PaymentMethod
+				oldPaymentMethod.detach(options);
+			}
+
+			if(defaultSource != null) {
+				// Conversion to PaymentMethod, remove old default source
+				Card defaultCard = (Card)customer.getSources().retrieve(defaultSource, options);
+				defaultCard.delete(options);
+			}
 		} catch(StripeException e) {
 			ConvertedError converted = convertError(e);
 			// TODO: Throw ErrorCodeException to provide more details
@@ -772,21 +1546,67 @@ public class Stripe implements MerchantServicesProvider {
 		}
 	}
 
+	private static String zeroPad(byte month) {
+		if(month < 10) return "0" + month;
+		return Byte.toString(month);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 * <ol>
+	 * <li>See <a href="https://stripe.com/docs/api/payment_methods/update?lang=java">Update a PaymentMethod</a>.</li>
+	 * <li>See <a href="https://stripe.com/docs/api/cards/delete?lang=java">Delete a card</a>.</li>
+	 * <li>See <a href="https://stripe.com/docs/api/cards/update?lang=java">Update a card</a>.</li>
+	 * </ol>
+	 */
 	@Override
 	public void updateCreditCardExpiration(
 		CreditCard creditCard,
 		byte expirationMonth,
 		short expirationYear
 	) throws IOException {
-		// Update the default Card
-		Map<String,Object> updateParams = new HashMap<>();
-		addParam(true, updateParams, "exp_month", expirationMonth);
-		addParam(true, updateParams, "exp_year", expirationYear);
 		try {
+			// Find the customer
 			Customer customer = Customer.retrieve(creditCard.getProviderUniqueId(), options);
-			CustomerCardCollection cards = customer.getCards();
-			Card defaultCard = cards.retrieve(customer.getDefaultCard(), options);
-			defaultCard.update(updateParams, options);
+
+			String paymentMethodId;
+			{
+				Tuple2<Customer,String> combined = getDefaultPaymentMethodId(customer);
+				customer = combined.getElement1();
+				paymentMethodId = combined.getElement2();
+			}
+			String defaultSource = customer.getDefaultSource();
+
+			if(paymentMethodId != null) {
+				// Find the PaymentMethod
+				PaymentMethod defaultPaymentMethod = PaymentMethod.retrieve(paymentMethodId, options);
+				// Update PaymentMethod
+				Map<String,Object> cardParams = new HashMap<>();
+				cardParams.put("exp_month", expirationMonth);
+				cardParams.put("exp_year", expirationYear);
+				defaultPaymentMethod.update(
+					Collections.singletonMap("card", (Object)cardParams),
+					options
+				);
+				// Check for incomplete conversion to PaymentMethod
+				if(defaultSource != null) {
+					// Incomplete conversion to PaymentMethod, remove old default source
+					Card defaultCard = (Card)customer.getSources().retrieve(defaultSource, options);
+					defaultCard.delete(options);
+				}
+			} else {
+				// Find the default Card
+				Card defaultCard = (Card)customer.getSources().retrieve(defaultSource, options);
+				// Update the default Card
+				defaultCard.update(
+					CardUpdateOnCustomerParams.builder()
+						.setExpMonth(zeroPad(expirationMonth))
+						.setExpYear(Integer.toString(expirationYear))
+						.build(),
+					options
+				);
+				// TODO: Should we use builder pattern across the rest of this implementation?
+			}
 		} catch(StripeException e) {
 			ConvertedError converted = convertError(e);
 			// TODO: Throw ErrorCodeException to provide more details
@@ -794,12 +1614,18 @@ public class Stripe implements MerchantServicesProvider {
 		}
 	}
 
+	/**
+	 * {@inheritDoc}
+	 * <p>
+	 * See <a href="https://stripe.com/docs/api/customers/delete?lang=java">Delete a customer</a>.
+	 * </p>
+	 */
 	@Override
 	public void deleteCreditCard(CreditCard creditCard) throws IOException {
 		try {
 			Customer customer = Customer.retrieve(creditCard.getProviderUniqueId(), options);
 			if(customer.getDeleted() == null || !customer.getDeleted()) {
-				DeletedCustomer deletedCustomer = customer.delete(options);
+				customer.delete(options);
 			}
 		} catch(StripeException e) {
 			ConvertedError converted = convertError(e);

@@ -37,7 +37,7 @@ along with ao-credit-cards-stripe.  If not, see <http://www.gnu.org/licenses />.
 		shortTitle="Changelog"
 		tocLevels="1"
 		datePublished="2016-10-29T19:08:07-0500"
-		dateModified="2019-04-24T02:16:02-0500"
+		dateModified="2019-05-13T18:19:31-0500"
 	>
 		<!-- The current snapshot, unreleased version -->
 		<c:set var="version" value="@{com.aoindustries:ao-credit-cards-stripe:pom.version}" />
@@ -55,6 +55,32 @@ along with ao-credit-cards-stripe.  If not, see <http://www.gnu.org/licenses />.
 			>
 				<ul>
 					<li>Minimum Java version changed from 1.6 to 1.7.</li>
+					<li>
+						Upgraded to current version of <ao:a href="https://search.maven.org/artifact/com.stripe/stripe-java/9.7.0/jar">com.stripe:stripe-java:jar:9.7.0</ao:a>,
+						which uses <ao:a href="https://stripe.com/docs/upgrades#2019-03-14">Stripe API version 2019-03-14</ao:a>.
+					</li>
+					<li>
+						The API no longer prefixes <code>AO#</code> to statement descriptors when the order number contains any alphabetic characters.  Instead,
+						please set any desired prefix in
+						<ao:a href="https://dashboard.stripe.com/account">Account settings -&gt; Public business information -&gt; Shortened descriptor</ao:a>.
+					</li>
+					<li>Moved "phone" from customer meta data to customer.</li>
+					<li>Now adding "name" on customer in addition to the card.</li>
+					<li>Added "group_name" and "principal_name" customer meta data.</li>
+					<li>
+						Changed from legacy <ao:a href="https://stripe.com/docs/api/cards?lang=java">Card API</ao:a> to newer
+						<ao:a href="https://stripe.com/docs/api/payment_methods?lang=java">PaymentMethods API</ao:a>.
+						<ol>
+							<li>"email" is set on PaymentMethod, whereas in the past it could not be set on Card.</li>
+							<li>"phone" is set on PaymentMethod, whereas in the past it could not be set on Card.</li>
+						</ol>
+					</li>
+					<li>
+						Changed from <ao:a href="https://stripe.com/docs/api/charges?lang=java">Charges API</ao:a> to newer
+						<ao:a href="https://stripe.com/docs/api/payment_intents?lang=java">PaymentIntents API</ao:a>.
+					</li>
+					<li>No longer stripping "ch_" from charge ID from approval code.</li>
+					<li>Please note: the next release of this project will be renamed to <code>ao-payment-stripe</code>.</li>
 					<!-- TODO: Before next production release:
 					<li>Getting updated card details during payment processing for when Stripe has a new card on file automatically.</li>
 					<li>Supporting callbacks to get notified by Stripe when new tokenized card is updated.</li>
