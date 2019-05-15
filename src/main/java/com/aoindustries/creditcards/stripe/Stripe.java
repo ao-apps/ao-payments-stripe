@@ -186,22 +186,6 @@ public class Stripe implements MerchantServicesProvider {
 	}
 
 	/**
-	 * Adds a trimmed parameter to a map if the value is non-null and not empty after trimming.
-	 *
-	 * @param update  The parameter will always be added, even if null, to update an existing object
-	 */
-	private static void addParam(boolean update, Map<String,Object> params, String name, String value) {
-		if(value != null) {
-			value = value.trim();
-			if(!value.isEmpty()) {
-				params.put(name, value);
-				return;
-			}
-		}
-		if(update) params.put(name, null);
-	}
-
-	/**
 	 * Adds a parameter to a map if the value is non-null.
 	 *
 	 * @param update  The parameter will always be added, even if null, to update an existing object
@@ -223,19 +207,6 @@ public class Stripe implements MerchantServicesProvider {
 	}
 
 	/**
-	 * Adds a parameter to a map if the value is non-null.
-	 *
-	 * @param update  The parameter will always be added, even if null, to update an existing object
-	 */
-	private static void addParam(boolean update, Map<String,Object> params, String name, Object value) {
-		if(value != null) {
-			params.put(name, value);
-			return;
-		}
-		if(update) params.put(name, null);
-	}
-
-	/**
 	 * Adds a parameter to a map if the value is non-null and not empty.
 	 *
 	 * @param update  The parameter will always be added, (as empty map when {@code null}), to update an existing object
@@ -254,19 +225,6 @@ public class Stripe implements MerchantServicesProvider {
 		} else {
 			return false;
 		}
-	}
-
-	/**
-	 * Adds a parameter to a map if the value is non-null and not empty.
-	 *
-	 * @param update  The parameter will always be added, even if null, to update an existing object
-	 */
-	private static void addParam(boolean update, Map<String,Object> params, String name, Map<String,Object> map) {
-		if(map != null && !map.isEmpty()) {
-			params.put(name, map);
-			return;
-		}
-		if(update) params.put(name, null);
 	}
 
 	/**
