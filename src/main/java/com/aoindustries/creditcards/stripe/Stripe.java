@@ -26,6 +26,9 @@ import static com.aoindustries.creditcards.ApplicationResourcesAccessor.accessor
 import com.aoindustries.creditcards.AuthorizationResult;
 import com.aoindustries.creditcards.CaptureResult;
 import com.aoindustries.creditcards.CreditCard;
+import static com.aoindustries.creditcards.CreditCard.MASK_CHARACTER;
+import static com.aoindustries.creditcards.CreditCard.UNKNOWN_DIGIT;
+import static com.aoindustries.creditcards.CreditCard.UNKNOWN_MIDDLE;
 import com.aoindustries.creditcards.CreditResult;
 import com.aoindustries.creditcards.MerchantServicesProvider;
 import com.aoindustries.creditcards.SaleResult;
@@ -70,6 +73,7 @@ import com.stripe.param.PaymentMethodUpdateParams;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Currency;
 import java.util.LinkedHashMap;
@@ -77,6 +81,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Provider for Stripe<br>
@@ -111,6 +117,8 @@ import java.util.function.Consumer;
  * @author  AO Industries, Inc.
  */
 public class Stripe implements MerchantServicesProvider {
+
+	private static final Logger logger = Logger.getLogger(Stripe.class.getName());
 
 	/**
 	 * See <a href="https://stripe.com/docs/api/metadata?lang=java">Metadata</a>.
@@ -552,20 +560,121 @@ public class Stripe implements MerchantServicesProvider {
 		private final TransactionResult.ErrorCode errorCode;
 		private final String providerErrorMessage;
 		private final AuthorizationResult.DeclineReason declineReason;
+		private final String providerReplacementMaskedCardNumber;
+		private final String replacementMaskedCardNumber;
 
 		private ConvertedError(
 			TransactionResult.CommunicationResult communicationResult,
 			String providerErrorCode,
 			TransactionResult.ErrorCode errorCode,
 			String providerErrorMessage,
-			AuthorizationResult.DeclineReason declineReason
+			AuthorizationResult.DeclineReason declineReason,
+			String providerReplacementMaskedCardNumber,
+			String replacementMaskedCardNumber
 		) {
 			this.communicationResult = communicationResult;
 			this.providerErrorCode = providerErrorCode;
 			this.errorCode = errorCode;
 			this.providerErrorMessage = providerErrorMessage;
 			this.declineReason = declineReason;
+			this.providerReplacementMaskedCardNumber = providerReplacementMaskedCardNumber;
+			this.replacementMaskedCardNumber = replacementMaskedCardNumber;
 		}
+	}
+
+	private static final String MASK_8;
+	static {
+		char[] mask8chars = new char[8];
+		Arrays.fill(mask8chars, MASK_CHARACTER);
+		MASK_8 = new String(mask8chars);
+	}
+
+	private static final String MASK_9 = MASK_8 + MASK_CHARACTER;
+
+	private static final String MASK_10 = MASK_9 + MASK_CHARACTER;
+
+	private static final String MASK_11 = MASK_10 + MASK_CHARACTER;
+
+	private static String getProviderReplacementMaskedCardNumber(String brand, String last4) {
+		return Objects.toString(brand, "") + ',' + Objects.toString(last4, "");
+	}
+
+	/**
+	 * Generates a replacement masked card number given the old masked card number,
+	 * new brand, and new last4.
+	 * <ol>
+	 * <li>See <a href="https://stripe.com/docs/api/payment_methods/object?lang=java">The PaymentMethod object</a>.</li>
+	 * <li>See <a href="https://en.wikipedia.org/wiki/Payment_card_number#Issuer_identification_number_(IIN)">Issuer identification number (IIN)</a>.</li>
+	 * </ol>
+	 * @param  maskedCardNumber  The old masked card number, when available.
+	 * @param  brand  The brand of a possible replacement card, when available.
+	 * @param  last4  The last four digits of a possible replacement card, when available.
+	 *
+	 * @return  The updated masked card number or {@code null} when unchanged or unable to determine a reasonable and unambiguous mapping.
+	 */
+	private static String getReplacementMaskedCardNumber(String maskedCardNumber, String brand, String last4) {
+		final String replacementMaskedCardNumber;
+		// If there is no brand or last4, there is nothing we can do
+		if(brand == null || last4 == null) {
+			replacementMaskedCardNumber = null;
+		}
+		// If last4 is not all digits, ignore
+		else if(!last4.equals(CreditCard.numbersOnly(last4))) {
+			if(logger.isLoggable(Level.WARNING)) {
+				logger.log(Level.WARNING, "last4 is not all digits, ignoring: " + last4);
+			}
+			replacementMaskedCardNumber = null;
+		}
+		// If last4 is not length 4, ignore
+		else if(last4.length() != 4) {
+			if(logger.isLoggable(Level.WARNING)) {
+				logger.log(Level.WARNING, "last4 is not length 4, ignoring: " + last4);
+			}
+			replacementMaskedCardNumber = null;
+		} else {
+			// If the last four digits match the old masked card number, assume not changed.
+			String oldDigits = CreditCard.numbersOnly(maskedCardNumber);
+			if(oldDigits != null && oldDigits.endsWith(last4)) {
+				// We won't bother comparing brand in this case.  It is unlikely a card is replaced with a new type at all, and very unlikely with same last-four digits.
+				replacementMaskedCardNumber = null;
+			} else if("amex".equals(brand)) {
+				// Start: 34, 37
+				// Length: 15
+				replacementMaskedCardNumber = "3" + UNKNOWN_DIGIT + MASK_9 + last4;
+				assert replacementMaskedCardNumber.length() == 15;
+			} else if("diners".equals(brand)) {
+				// TODO: No unambiguous mapping.  Version 2.0 of API will handle this better with type + last4 stored
+				replacementMaskedCardNumber = UNKNOWN_MIDDLE + last4;
+			} else if("discover".equals(brand)) {
+				// TODO: There are other prefixes than this, but this matches the expectations of our very old code
+				replacementMaskedCardNumber = "6011" + MASK_8 + last4;
+				// TODO: There are other lengths, but this matches the expectations of our very old code
+				assert replacementMaskedCardNumber.length() == 16;
+			} else if("jcb".equals(brand)) {
+				// TODO: No unambiguous mapping.  Version 2.0 of API will handle this better with type + last4 stored
+				replacementMaskedCardNumber = UNKNOWN_MIDDLE + last4;
+			} else if("mastercard".equals(brand)) {
+				// TODO: There are other prefixes than this, but this matches the expectations of our very old code
+				replacementMaskedCardNumber = "5" + UNKNOWN_DIGIT + MASK_10 + last4;
+				// TODO: There are other lengths, but this matches the expectations of our very old code
+				assert replacementMaskedCardNumber.length() == 16;
+			} else if("unionpay".equals(brand)) {
+				// Start: 62
+				// Length: 16-19
+				replacementMaskedCardNumber = "62" + UNKNOWN_MIDDLE + last4;
+			} else if("visa".equals(brand)) {
+				// Start: 4
+				// Length: 16
+				replacementMaskedCardNumber = "4" + MASK_11 + last4;
+				assert replacementMaskedCardNumber.length() == 16;
+			} else {
+				if(!"unknown".equals(brand) && logger.isLoggable(Level.WARNING)) {
+					logger.log(Level.WARNING, "Unexpected brand: " + brand);
+				}
+				replacementMaskedCardNumber = null;
+			}
+		}
+		return replacementMaskedCardNumber;
 	}
 
 	/**
@@ -575,7 +684,7 @@ public class Stripe implements MerchantServicesProvider {
 	 * <li>See <a href="https://stripe.com/docs/api/errors/handling?lang=java">Handling errors</a>.</li>
 	 * </ol>
 	 */
-	private static ConvertedError convertError(StripeException e) {
+	private static ConvertedError convertError(String maskedCardNumber, StripeException e) {
 		String requestId = e.getRequestId(); // TODO: Return this via API?
 		Integer statusCode = e.getStatusCode();
 		StripeError stripeError = e.getStripeError();
@@ -603,10 +712,23 @@ public class Stripe implements MerchantServicesProvider {
 		// The PaymentMethod object for errors returned on a request involving a PaymentMethod.
 		// TODO: What to do with paymentMethod?
 		PaymentMethod paymentMethod = stripeError == null ? null : stripeError.getPaymentMethod();
+		PaymentMethod.Card card = paymentMethod == null ? null : paymentMethod.getCard();
 
 		// The source object for errors returned on a request involving a source.
 		// TODO: What to do with paymentSource?
 		PaymentSource source = stripeError == null ? null : stripeError.getSource();
+
+		String providerReplacementMaskedCardNumber;
+		String replacementMaskedCardNumber;
+		if(card != null) {
+			String brand = card.getBrand();
+			String last4 = card.getLast4();
+			providerReplacementMaskedCardNumber = getProviderReplacementMaskedCardNumber(brand, last4);
+			replacementMaskedCardNumber = getReplacementMaskedCardNumber(maskedCardNumber, brand, last4);
+		} else {
+			providerReplacementMaskedCardNumber = null;
+			replacementMaskedCardNumber = null;
+		}
 
 		if(e instanceof RateLimitException) { // Is subclass of InvalidRequestException, must go before it
 			return new ConvertedError(
@@ -614,7 +736,9 @@ public class Stripe implements MerchantServicesProvider {
 				Objects.toString(statusCode, "") + "," + Objects.toString(code, ""),
 				TransactionResult.ErrorCode.RATE_LIMIT,
 				message,
-				null
+				null,
+				providerReplacementMaskedCardNumber,
+				replacementMaskedCardNumber
 			);
 		}
 		if(
@@ -921,7 +1045,9 @@ public class Stripe implements MerchantServicesProvider {
 				Objects.toString(statusCode, "") + "," + Objects.toString(code, "") + "," + Objects.toString(param, "") + "," + Objects.toString(declineCode, ""),
 				errorCode,
 				message,
-				declineReason
+				declineReason,
+				providerReplacementMaskedCardNumber,
+				replacementMaskedCardNumber
 			);
 		}
 		if(
@@ -933,7 +1059,9 @@ public class Stripe implements MerchantServicesProvider {
 				Objects.toString(statusCode, "") + "," + Objects.toString(code, ""),
 				TransactionResult.ErrorCode.PROVIDER_CONFIGURATION_ERROR,
 				message,
-				null
+				null,
+				providerReplacementMaskedCardNumber,
+				replacementMaskedCardNumber
 			);
 		}
 		if(e instanceof OAuthException) {
@@ -944,7 +1072,9 @@ public class Stripe implements MerchantServicesProvider {
 				Objects.toString(statusCode, "") + "," + Objects.toString(code, "") + "," + Objects.toString(oAuthError == null ? null : oAuthError.getError(), ""),
 				TransactionResult.ErrorCode.PROVIDER_CONFIGURATION_ERROR,
 				errorDescription == null ? message : errorDescription,
-				null
+				null,
+				providerReplacementMaskedCardNumber,
+				replacementMaskedCardNumber
 			);
 		}
 		if(e instanceof IdempotencyException) {
@@ -953,7 +1083,9 @@ public class Stripe implements MerchantServicesProvider {
 				Objects.toString(statusCode, "") + "," + Objects.toString(code, ""),
 				TransactionResult.ErrorCode.DUPLICATE,
 				message,
-				null
+				null,
+				providerReplacementMaskedCardNumber,
+				replacementMaskedCardNumber
 			);
 		}
 		if(
@@ -966,7 +1098,9 @@ public class Stripe implements MerchantServicesProvider {
 				Objects.toString(statusCode, "") + "," + Objects.toString(code, ""),
 				TransactionResult.ErrorCode.ERROR_TRY_AGAIN,
 				message,
-				null
+				null,
+				providerReplacementMaskedCardNumber,
+				replacementMaskedCardNumber
 			);
 		}
 		if(e instanceof SignatureVerificationException) {
@@ -976,7 +1110,9 @@ public class Stripe implements MerchantServicesProvider {
 				Objects.toString(statusCode, "") + "," + Objects.toString(code, "") + "," + Objects.toString(sigHeader, ""),
 				TransactionResult.ErrorCode.GATEWAY_SECURITY_GUIDELINES_NOT_MET,
 				message,
-				null
+				null,
+				providerReplacementMaskedCardNumber,
+				replacementMaskedCardNumber
 			);
 		}
 		// Note: This will not happen unless a new subclass of StripeException is introduced.
@@ -985,7 +1121,9 @@ public class Stripe implements MerchantServicesProvider {
 			Objects.toString(statusCode, "") + "," + Objects.toString(code, ""),
 			TransactionResult.ErrorCode.UNKNOWN,
 			message,
-			null
+			null,
+			providerReplacementMaskedCardNumber,
+			replacementMaskedCardNumber
 		);
 	}
 
@@ -1294,6 +1432,18 @@ public class Stripe implements MerchantServicesProvider {
 			// TODO: review reason
 			// TODO: check "paid"?
 
+			String providerReplacementMaskedCardNumber;
+			String replacementMaskedCardNumber;
+			if(card != null) {
+				String brand = card.getBrand();
+				String last4 = card.getLast4();
+				providerReplacementMaskedCardNumber = getProviderReplacementMaskedCardNumber(brand, last4);
+				replacementMaskedCardNumber = getReplacementMaskedCardNumber(creditCard.getMaskedCardNumber(), brand, last4);
+			} else {
+				providerReplacementMaskedCardNumber = null;
+				replacementMaskedCardNumber = null;
+			}
+
 			// https://stripe.com/docs/payments/payment-intents/usage?lang=java#paymentintent-status-overview
 			String status = paymentIntent.getStatus();
 			
@@ -1325,6 +1475,8 @@ public class Stripe implements MerchantServicesProvider {
 					null, // errorCode
 					null, // providerErrorMessage
 					paymentIntent.getId(),
+					providerReplacementMaskedCardNumber,
+					replacementMaskedCardNumber,
 					status, // providerApprovalResult
 					AuthorizationResult.ApprovalResult.APPROVED,
 					null, // providerDeclineReason
@@ -1355,6 +1507,8 @@ public class Stripe implements MerchantServicesProvider {
 					null, // errorCode
 					null, // providerErrorMessage
 					paymentIntent.getId(),
+					providerReplacementMaskedCardNumber,
+					replacementMaskedCardNumber,
 					nextAction == null ? status : nextAction.getType(), // providerApprovalResult
 					AuthorizationResult.ApprovalResult.HOLD,
 					null, // providerDeclineReason
@@ -1369,7 +1523,7 @@ public class Stripe implements MerchantServicesProvider {
 				);
 			}
 		} catch(StripeException e) {
-			ConvertedError converted = convertError(e);
+			ConvertedError converted = convertError(creditCard.getMaskedCardNumber(), e);
 			if(converted.declineReason == null) {
 				return new AuthorizationResult(
 					providerId,
@@ -1378,6 +1532,8 @@ public class Stripe implements MerchantServicesProvider {
 					converted.errorCode,
 					converted.providerErrorMessage,
 					null, // providerUniqueId
+					converted.providerReplacementMaskedCardNumber,
+					converted.replacementMaskedCardNumber,
 					null, // providerApprovalResult
 					null, // approvalResult
 					null, // providerDeclineReason
@@ -1399,6 +1555,8 @@ public class Stripe implements MerchantServicesProvider {
 					null, // errorCode
 					converted.providerErrorMessage,
 					null, // providerUniqueId
+					converted.providerReplacementMaskedCardNumber,
+					converted.replacementMaskedCardNumber,
 					null, // providerApprovalResult
 					AuthorizationResult.ApprovalResult.DECLINED, // approvalResult
 					converted.providerErrorCode, // providerDeclineReason
@@ -1456,7 +1614,7 @@ public class Stripe implements MerchantServicesProvider {
 				);
 			}
 		} catch(StripeException e) {
-			ConvertedError converted = convertError(e);
+			ConvertedError converted = convertError(null, e);
 			if(converted.declineReason == null) {
 				return new CaptureResult(
 					providerId,
@@ -1544,7 +1702,7 @@ public class Stripe implements MerchantServicesProvider {
 			// Return the Id of the new customer
 			return customer.getId();
 		} catch(StripeException e) {
-			ConvertedError converted = convertError(e);
+			ConvertedError converted = convertError(creditCard.getMaskedCardNumber(), e);
 			// TODO: Throw ErrorCodeException to provide more details
 			throw new LocalizedIOException(e, accessor, "MerchantServicesProvider.storeCreditCard.notSuccessful");
 		}
@@ -1610,7 +1768,7 @@ public class Stripe implements MerchantServicesProvider {
 				defaultCard.update(cardParams, options);
 			}
 		} catch(StripeException e) {
-			ConvertedError converted = convertError(e);
+			ConvertedError converted = convertError(creditCard.getMaskedCardNumber(), e);
 			// TODO: Throw ErrorCodeException to provide more details
 			throw new LocalizedIOException(e, accessor, "MerchantServicesProvider.updateCreditCardNumberAndExpiration.notSuccessful");
 		}
@@ -1690,7 +1848,7 @@ public class Stripe implements MerchantServicesProvider {
 				defaultCard.delete(options);
 			}
 		} catch(StripeException e) {
-			ConvertedError converted = convertError(e);
+			ConvertedError converted = convertError(CreditCard.maskCreditCardNumber(cardNumber), e);
 			// TODO: Throw ErrorCodeException to provide more details
 			throw new LocalizedIOException(e, accessor, "MerchantServicesProvider.updateCreditCardNumberAndExpiration.notSuccessful");
 		}
@@ -1761,7 +1919,7 @@ public class Stripe implements MerchantServicesProvider {
 				);
 			}
 		} catch(StripeException e) {
-			ConvertedError converted = convertError(e);
+			ConvertedError converted = convertError(creditCard.getMaskedCardNumber(), e);
 			// TODO: Throw ErrorCodeException to provide more details
 			throw new LocalizedIOException(e, accessor, "MerchantServicesProvider.updateCreditCardExpiration.notSuccessful");
 		}
@@ -1781,7 +1939,7 @@ public class Stripe implements MerchantServicesProvider {
 				customer.delete(options);
 			}
 		} catch(StripeException e) {
-			ConvertedError converted = convertError(e);
+			ConvertedError converted = convertError(creditCard.getMaskedCardNumber(), e);
 			// TODO: Throw ErrorCodeException to provide more details
 			throw new LocalizedIOException(e, accessor, "MerchantServicesProvider.deleteCreditCard.notSuccessful");
 		}
