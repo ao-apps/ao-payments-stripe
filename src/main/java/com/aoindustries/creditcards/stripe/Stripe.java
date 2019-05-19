@@ -539,16 +539,23 @@ public class Stripe implements MerchantServicesProvider {
 			paramSet |= addParam(false, builder::setState, transactionRequest.getShippingState());
 			address = paramSet ? builder.build() : null;
 		}
+		String shippingName = CreditCard.getFullName(transactionRequest.getShippingFirstName(), transactionRequest.getShippingLastName());
+		if(shippingName != null && shippingName.isEmpty()) shippingName = null;
 		PaymentIntentCreateParams.Shipping shipping;
 		{
-			PaymentIntentCreateParams.Shipping.Builder shippingBuilder = PaymentIntentCreateParams.Shipping.builder();
-			boolean paramSet = false;
-			paramSet |= addParam(false, shippingBuilder::setAddress, address);
-			paramSet |= addParam(false, shippingBuilder::setName, CreditCard.getFullName(transactionRequest.getShippingFirstName(), transactionRequest.getShippingLastName()));
-			// Unused: carrier		addParam(update, shippingParams, "address", addressParams);
-			paramSet |= addParam(false, shippingBuilder::setPhone, creditCard.getPhone());
-			// Unused: tracking_number
-			shipping = paramSet ? shippingBuilder.build() : null;
+			// When no shipping address and no shipping name, do not set shipping at all
+			if(address == null && shippingName == null) {
+				shipping = null;
+			} else {
+				PaymentIntentCreateParams.Shipping.Builder shippingBuilder = PaymentIntentCreateParams.Shipping.builder();
+				boolean paramSet = false;
+				paramSet |= addParam(false, shippingBuilder::setAddress, address);
+				paramSet |= addParam(false, shippingBuilder::setName, shippingName);
+				// Unused: carrier		addParam(update, shippingParams, "address", addressParams);
+				paramSet |= addParam(false, shippingBuilder::setPhone, creditCard.getPhone());
+				// Unused: tracking_number
+				shipping = paramSet ? shippingBuilder.build() : null;
+			}
 		}
 		return shipping;
 	}
@@ -633,7 +640,7 @@ public class Stripe implements MerchantServicesProvider {
 			replacementMaskedCardNumber = null;
 		} else {
 			// If the last four digits match the old masked card number, assume not changed.
-			String oldDigits = CreditCard.numbersOnly(maskedCardNumber);
+			String oldDigits = CreditCard.numbersOnly(maskedCardNumber, true);
 			if(oldDigits != null && oldDigits.endsWith(last4)) {
 				// We won't bother comparing brand in this case.  It is unlikely a card is replaced with a new type at all, and very unlikely with same last-four digits.
 				replacementMaskedCardNumber = null;
