@@ -748,7 +748,7 @@ public class Stripe implements MerchantServicesProvider {
 			Long expYear = card.getExpYear();
 			providerReplacementExpiration = getProviderReplacementCombined(expMonth, expYear);
 			replacementExpirationMonth = expMonth == null ? null : SafeMath.castByte(expMonth);
-			replacementExpirationYear = expYear == null ? null : SafeMath.castShort(SafeMath.castInt(expYear)); // TODO: castShort(long value)
+			replacementExpirationYear = expYear == null ? null : SafeMath.castShort(expYear);
 			if(
 				expirationMonth != null && expirationMonth.equals(replacementExpirationMonth)
 				&& expirationYear != null && expirationYear.equals(replacementExpirationYear)
@@ -1508,7 +1508,7 @@ public class Stripe implements MerchantServicesProvider {
 				Long expYear = card.getExpYear();
 				providerReplacementExpiration = getProviderReplacementCombined(expMonth, expYear);
 				replacementExpirationMonth = expMonth == null ? null : SafeMath.castByte(expMonth);
-				replacementExpirationYear = expYear == null ? null : SafeMath.castShort(SafeMath.castInt(expYear)); // TODO: castShort(long value)
+				replacementExpirationYear = expYear == null ? null : SafeMath.castShort(expYear);
 				if(
 					expirationMonth != null && expirationMonth.equals(replacementExpirationMonth)
 					&& expirationYear != null && expirationYear.equals(replacementExpirationYear)
