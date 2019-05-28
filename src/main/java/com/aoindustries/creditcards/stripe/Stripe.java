@@ -621,7 +621,7 @@ public class Stripe implements MerchantServicesProvider {
 	 * new brand, and new last4.
 	 * <ol>
 	 * <li>See <a href="https://stripe.com/docs/api/payment_methods/object?lang=java">The PaymentMethod object</a>.</li>
-	 * <li>See <a href="https://en.wikipedia.org/wiki/Payment_card_number#Issuer_identification_number_(IIN)">Issuer identification number (IIN)</a>.</li>
+	 * <li>See <a href="https://wikipedia.org/wiki/Payment_card_number#Issuer_identification_number_(IIN)">Issuer identification number (IIN)</a>.</li>
 	 * </ol>
 	 * @param  maskedCardNumber  The old masked card number, when available.
 	 * @param  brand  The brand of a possible replacement card, when available.
