@@ -1436,6 +1436,7 @@ public class Stripe implements MerchantServicesProvider {
 		if(transactionRequest.getTestMode()) {
 			throw new UnsupportedOperationException("Test mode not currently supported");
 		}
+		String customerId = null;
 		try {
 			String paymentMethodId;
 			PaymentIntent paymentIntent;
@@ -1456,7 +1457,7 @@ public class Stripe implements MerchantServicesProvider {
 					builder.setCaptureMethod(capture ? PaymentIntentCreateParams.CaptureMethod.AUTOMATIC : PaymentIntentCreateParams.CaptureMethod.MANUAL);
 					builder.setConfirm(true);
 					builder.setConfirmationMethod(PaymentIntentCreateParams.ConfirmationMethod.MANUAL);
-					String customerId = creditCard.getProviderUniqueId();
+					customerId = creditCard.getProviderUniqueId();
 					if(customerId != null) {
 						// Is a stored card
 						builder.setCustomer(customerId);
@@ -1610,11 +1611,14 @@ public class Stripe implements MerchantServicesProvider {
 					null, // errorCode
 					null, // providerErrorMessage
 					paymentIntent.getId(),
-					providerReplacementMaskedCardNumber,
-					replacementMaskedCardNumber,
-					providerReplacementExpiration,
-					replacementExpirationMonth,
-					replacementExpirationYear,
+					customerId == null ? null : new TokenizedCreditCard(
+						customerId,
+						providerReplacementMaskedCardNumber,
+						replacementMaskedCardNumber,
+						providerReplacementExpiration,
+						replacementExpirationMonth,
+						replacementExpirationYear
+					),
 					status, // providerApprovalResult
 					AuthorizationResult.ApprovalResult.APPROVED,
 					null, // providerDeclineReason
@@ -1645,11 +1649,14 @@ public class Stripe implements MerchantServicesProvider {
 					null, // errorCode
 					null, // providerErrorMessage
 					paymentIntent.getId(),
-					providerReplacementMaskedCardNumber,
-					replacementMaskedCardNumber,
-					providerReplacementExpiration,
-					replacementExpirationMonth,
-					replacementExpirationYear,
+					customerId == null ? null : new TokenizedCreditCard(
+						customerId,
+						providerReplacementMaskedCardNumber,
+						replacementMaskedCardNumber,
+						providerReplacementExpiration,
+						replacementExpirationMonth,
+						replacementExpirationYear
+					),
 					nextAction == null ? status : nextAction.getType(), // providerApprovalResult
 					AuthorizationResult.ApprovalResult.HOLD,
 					null, // providerDeclineReason
@@ -1673,11 +1680,14 @@ public class Stripe implements MerchantServicesProvider {
 					converted.errorCode,
 					converted.providerErrorMessage,
 					null, // providerUniqueId
-					converted.providerReplacementMaskedCardNumber,
-					converted.replacementMaskedCardNumber,
-					converted.providerReplacementExpiration,
-					converted.replacementExpirationMonth,
-					converted.replacementExpirationYear,
+					customerId == null ? null : new TokenizedCreditCard(
+						customerId,
+						converted.providerReplacementMaskedCardNumber,
+						converted.replacementMaskedCardNumber,
+						converted.providerReplacementExpiration,
+						converted.replacementExpirationMonth,
+						converted.replacementExpirationYear
+					),
 					null, // providerApprovalResult
 					null, // approvalResult
 					null, // providerDeclineReason
@@ -1699,11 +1709,14 @@ public class Stripe implements MerchantServicesProvider {
 					null, // errorCode
 					converted.providerErrorMessage,
 					null, // providerUniqueId
-					converted.providerReplacementMaskedCardNumber,
-					converted.replacementMaskedCardNumber,
-					converted.providerReplacementExpiration,
-					converted.replacementExpirationMonth,
-					converted.replacementExpirationYear,
+					customerId == null ? null : new TokenizedCreditCard(
+						customerId,
+						converted.providerReplacementMaskedCardNumber,
+						converted.replacementMaskedCardNumber,
+						converted.providerReplacementExpiration,
+						converted.replacementExpirationMonth,
+						converted.replacementExpirationYear
+					),
 					null, // providerApprovalResult
 					AuthorizationResult.ApprovalResult.DECLINED, // approvalResult
 					converted.providerErrorCode, // providerDeclineReason
