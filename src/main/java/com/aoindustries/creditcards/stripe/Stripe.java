@@ -32,6 +32,7 @@ import static com.aoindustries.creditcards.CreditCard.UNKNOWN_MIDDLE;
 import com.aoindustries.creditcards.CreditResult;
 import com.aoindustries.creditcards.MerchantServicesProvider;
 import com.aoindustries.creditcards.SaleResult;
+import com.aoindustries.creditcards.TokenizedCreditCard;
 import com.aoindustries.creditcards.Transaction;
 import com.aoindustries.creditcards.TransactionRequest;
 import com.aoindustries.creditcards.TransactionResult;
@@ -64,6 +65,7 @@ import com.stripe.model.oauth.OAuthError;
 import com.stripe.net.RequestOptions;
 import com.stripe.param.CardUpdateOnCustomerParams;
 import com.stripe.param.CustomerCreateParams;
+import com.stripe.param.CustomerListParams;
 import com.stripe.param.CustomerUpdateParams;
 import com.stripe.param.PaymentIntentCaptureParams;
 import com.stripe.param.PaymentIntentCreateParams;
@@ -72,6 +74,7 @@ import com.stripe.param.PaymentMethodCreateParams;
 import com.stripe.param.PaymentMethodListParams;
 import com.stripe.param.PaymentMethodUpdateParams;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.Arrays;
@@ -621,6 +624,7 @@ public class Stripe implements MerchantServicesProvider {
 	 * new brand, and new last4.
 	 * <ol>
 	 * <li>See <a href="https://stripe.com/docs/api/payment_methods/object?lang=java">The PaymentMethod object</a>.</li>
+	 * <li>See <a href="https://stripe.com/docs/api/cards/object?lang=java">The card object</a>.</li>
 	 * <li>See <a href="https://wikipedia.org/wiki/Payment_card_number#Issuer_identification_number_(IIN)">Issuer identification number (IIN)</a>.</li>
 	 * </ol>
 	 * @param  maskedCardNumber  The old masked card number, when available.
@@ -629,7 +633,7 @@ public class Stripe implements MerchantServicesProvider {
 	 *
 	 * @return  The updated masked card number or {@code null} when unchanged or unable to determine a reasonable and unambiguous mapping.
 	 */
-	private static String getReplacementMaskedCardNumber(String maskedCardNumber, String brand, String last4) {
+	private String getReplacementMaskedCardNumber(String maskedCardNumber, String brand, String last4, PrintWriter warningOut) {
 		final String replacementMaskedCardNumber;
 		// If there is no brand or last4, there is nothing we can do
 		if(brand == null || last4 == null) {
@@ -637,14 +641,18 @@ public class Stripe implements MerchantServicesProvider {
 		}
 		// If last4 is not all digits, ignore
 		else if(!last4.equals(CreditCard.numbersOnly(last4))) {
-			if(logger.isLoggable(Level.WARNING)) {
+			if(warningOut != null) {
+				warningOut.println(Stripe.class.getSimpleName() + "(" + providerId + ").getReplacementMaskedCardNumber: last4 is not all digits, ignoring: " + last4);
+			} else if(logger.isLoggable(Level.WARNING)) {
 				logger.log(Level.WARNING, "last4 is not all digits, ignoring: " + last4);
 			}
 			replacementMaskedCardNumber = null;
 		}
 		// If last4 is not length 4, ignore
 		else if(last4.length() != 4) {
-			if(logger.isLoggable(Level.WARNING)) {
+			if(warningOut != null) {
+				warningOut.println(Stripe.class.getSimpleName() + "(" + providerId + ").getReplacementMaskedCardNumber: last4 is not length 4, ignoring: " + last4);
+			} else if(logger.isLoggable(Level.WARNING)) {
 				logger.log(Level.WARNING, "last4 is not length 4, ignoring: " + last4);
 			}
 			replacementMaskedCardNumber = null;
@@ -654,44 +662,90 @@ public class Stripe implements MerchantServicesProvider {
 			if(oldDigits != null && oldDigits.endsWith(last4)) {
 				// We won't bother comparing brand in this case.  It is unlikely a card is replaced with a new type at all, and very unlikely with same last-four digits.
 				replacementMaskedCardNumber = null;
-			} else if("amex".equals(brand)) {
+			} else if(
+				"amex".equals(brand) // PaymentMethod API
+				|| "American Express".equals(brand) // Card API
+			) {
 				// Start: 34, 37
 				// Length: 15
 				replacementMaskedCardNumber = "3" + UNKNOWN_DIGIT + MASK_9 + last4;
 				assert replacementMaskedCardNumber.length() == 15;
-			} else if("diners".equals(brand)) {
+			} else if(
+				"diners".equals(brand) // PaymentMethod API
+				|| "Diners Club".equals(brand) // Card API
+			) {
 				// TODO: No unambiguous mapping.  Version 2.0 of API will handle this better with type + last4 stored
 				replacementMaskedCardNumber = UNKNOWN_MIDDLE + last4;
-			} else if("discover".equals(brand)) {
+			} else if(
+				"discover".equals(brand) // PaymentMethod API
+				|| "Discover".equals(brand) // Card API
+			) {
 				// TODO: There are other prefixes than this, but this matches the expectations of our very old code
 				replacementMaskedCardNumber = "6011" + MASK_8 + last4;
 				// TODO: There are other lengths, but this matches the expectations of our very old code
 				assert replacementMaskedCardNumber.length() == 16;
-			} else if("jcb".equals(brand)) {
+			} else if(
+				"jcb".equals(brand) // PaymentMethod API
+				|| "JCB".equals(brand) // Card API
+			) {
 				// TODO: No unambiguous mapping.  Version 2.0 of API will handle this better with type + last4 stored
 				replacementMaskedCardNumber = UNKNOWN_MIDDLE + last4;
-			} else if("mastercard".equals(brand)) {
+			} else if(
+				"mastercard".equals(brand) // PaymentMethod API
+				|| "MasterCard".equals(brand) // Card API
+			) {
 				// TODO: There are other prefixes than this, but this matches the expectations of our very old code
 				replacementMaskedCardNumber = "5" + UNKNOWN_DIGIT + MASK_10 + last4;
 				// TODO: There are other lengths, but this matches the expectations of our very old code
 				assert replacementMaskedCardNumber.length() == 16;
-			} else if("unionpay".equals(brand)) {
+			} else if(
+				"unionpay".equals(brand) // PaymentMethod API
+				|| "UnionPay".equals(brand) // Card API
+			) {
 				// Start: 62
 				// Length: 16-19
 				replacementMaskedCardNumber = "62" + UNKNOWN_MIDDLE + last4;
-			} else if("visa".equals(brand)) {
+			} else if(
+				"visa".equals(brand) // PaymentMethod API
+				|| "Visa".equals(brand) // Card API
+			) {
 				// Start: 4
 				// Length: 16
 				replacementMaskedCardNumber = "4" + MASK_11 + last4;
 				assert replacementMaskedCardNumber.length() == 16;
 			} else {
-				if(!"unknown".equals(brand) && logger.isLoggable(Level.WARNING)) {
-					logger.log(Level.WARNING, "Unexpected brand: " + brand);
+				if(
+					!"unknown".equalsIgnoreCase(brand) // PaymentMethod API
+					&& !"Unknown".equalsIgnoreCase(brand) // Card API
+				) {
+					if(warningOut != null) {
+						warningOut.println(Stripe.class.getSimpleName() + "(" + providerId + ").getReplacementMaskedCardNumber: Unexpected brand: " + brand);
+					} else if(logger.isLoggable(Level.WARNING)) {
+						logger.log(Level.WARNING, "Unexpected brand: " + brand);
+					}
 				}
 				replacementMaskedCardNumber = null;
 			}
 		}
 		return replacementMaskedCardNumber;
+	}
+
+	/**
+	 * Converts Stripe's {@link Long} representation of an expiration month to a {@link Byte}.
+	 *
+	 * @see  SafeMath#castByte(long)
+	 */
+	private static Byte safeCastMonth(Long expMonth) {
+		return expMonth == null ? null : SafeMath.castByte(expMonth);
+	}
+
+	/**
+	 * Converts Stripe's {@link Long} representation of an expiration year to a {@link Short}.
+	 *
+	 * @see  SafeMath#castShort(long)
+	 */
+	private static Short safeCastYear(Long expYear) {
+		return expYear == null ? null : SafeMath.castShort(expYear);
 	}
 
 	/**
@@ -701,7 +755,7 @@ public class Stripe implements MerchantServicesProvider {
 	 * <li>See <a href="https://stripe.com/docs/api/errors/handling?lang=java">Handling errors</a>.</li>
 	 * </ol>
 	 */
-	private static ConvertedError convertError(String maskedCardNumber, Byte expirationMonth, Short expirationYear, StripeException e) {
+	private ConvertedError convertError(String maskedCardNumber, Byte expirationMonth, Short expirationYear, StripeException e, PrintWriter warningOut) {
 		String requestId = e.getRequestId(); // TODO: Return this via API?
 		Integer statusCode = e.getStatusCode();
 		StripeError stripeError = e.getStripeError();
@@ -743,12 +797,12 @@ public class Stripe implements MerchantServicesProvider {
 			String brand = card.getBrand();
 			String last4 = card.getLast4();
 			providerReplacementMaskedCardNumber = getProviderReplacementCombined(brand, last4);
-			replacementMaskedCardNumber = getReplacementMaskedCardNumber(maskedCardNumber, brand, last4);
+			replacementMaskedCardNumber = getReplacementMaskedCardNumber(maskedCardNumber, brand, last4, warningOut);
 			Long expMonth = card.getExpMonth();
 			Long expYear = card.getExpYear();
 			providerReplacementExpiration = getProviderReplacementCombined(expMonth, expYear);
-			replacementExpirationMonth = expMonth == null ? null : SafeMath.castByte(expMonth);
-			replacementExpirationYear = expYear == null ? null : SafeMath.castShort(expYear);
+			replacementExpirationMonth = safeCastMonth(expMonth);
+			replacementExpirationYear = safeCastYear(expYear);
 			if(
 				expirationMonth != null && expirationMonth.equals(replacementExpirationMonth)
 				&& expirationYear != null && expirationYear.equals(replacementExpirationYear)
@@ -1314,7 +1368,8 @@ public class Stripe implements MerchantServicesProvider {
 			paymentMethodId = null;
 		}
 		if(paymentMethodId == null) {
-			// Find all attached
+			// Find up to 10 attached
+			// TODO: Pagination here, too?
 			PaymentMethodCollection paymentMethodCollection = PaymentMethod.list(
 				PaymentMethodListParams.builder()
 					.setCustomer(customer.getId())
@@ -1503,12 +1558,12 @@ public class Stripe implements MerchantServicesProvider {
 				String brand = card.getBrand();
 				String last4 = card.getLast4();
 				providerReplacementMaskedCardNumber = getProviderReplacementCombined(brand, last4);
-				replacementMaskedCardNumber = getReplacementMaskedCardNumber(creditCard.getMaskedCardNumber(), brand, last4);
+				replacementMaskedCardNumber = getReplacementMaskedCardNumber(creditCard.getMaskedCardNumber(), brand, last4, null);
 				Long expMonth = card.getExpMonth();
 				Long expYear = card.getExpYear();
 				providerReplacementExpiration = getProviderReplacementCombined(expMonth, expYear);
-				replacementExpirationMonth = expMonth == null ? null : SafeMath.castByte(expMonth);
-				replacementExpirationYear = expYear == null ? null : SafeMath.castShort(expYear);
+				replacementExpirationMonth = safeCastMonth(expMonth);
+				replacementExpirationYear = safeCastYear(expYear);
 				if(
 					expirationMonth != null && expirationMonth.equals(replacementExpirationMonth)
 					&& expirationYear != null && expirationYear.equals(replacementExpirationYear)
@@ -1609,7 +1664,7 @@ public class Stripe implements MerchantServicesProvider {
 				);
 			}
 		} catch(StripeException e) {
-			ConvertedError converted = convertError(creditCard.getMaskedCardNumber(), expirationMonth, expirationYear, e);
+			ConvertedError converted = convertError(creditCard.getMaskedCardNumber(), expirationMonth, expirationYear, e, null);
 			if(converted.declineReason == null) {
 				return new AuthorizationResult(
 					providerId,
@@ -1706,7 +1761,7 @@ public class Stripe implements MerchantServicesProvider {
 				);
 			}
 		} catch(StripeException e) {
-			ConvertedError converted = convertError(null, null, null, e);
+			ConvertedError converted = convertError(null, null, null, e, null);
 			if(converted.declineReason == null) {
 				return new CaptureResult(
 					providerId,
@@ -1798,7 +1853,7 @@ public class Stripe implements MerchantServicesProvider {
 			if(expirationMonth == CreditCard.UNKNOWN_EXPRIATION_MONTH) expirationMonth = null;
 			Short expirationYear = creditCard.getExpirationYear(); // TODO: 2.0: Nullable Short
 			if(expirationYear == CreditCard.UNKNOWN_EXPRIATION_YEAR) expirationYear = null;
-			ConvertedError converted = convertError(creditCard.getMaskedCardNumber(), expirationMonth, expirationYear, e);
+			ConvertedError converted = convertError(creditCard.getMaskedCardNumber(), expirationMonth, expirationYear, e, null);
 			// TODO: Throw ErrorCodeException to provide more details
 			throw new LocalizedIOException(e, accessor, "MerchantServicesProvider.storeCreditCard.notSuccessful");
 		}
@@ -1868,7 +1923,7 @@ public class Stripe implements MerchantServicesProvider {
 			if(expirationMonth == CreditCard.UNKNOWN_EXPRIATION_MONTH) expirationMonth = null;
 			Short expirationYear = creditCard.getExpirationYear(); // TODO: 2.0: Nullable Short
 			if(expirationYear == CreditCard.UNKNOWN_EXPRIATION_YEAR) expirationYear = null;
-			ConvertedError converted = convertError(creditCard.getMaskedCardNumber(), expirationMonth, expirationYear, e);
+			ConvertedError converted = convertError(creditCard.getMaskedCardNumber(), expirationMonth, expirationYear, e, null);
 			// TODO: Throw ErrorCodeException to provide more details
 			throw new LocalizedIOException(e, accessor, "MerchantServicesProvider.updateCreditCardNumberAndExpiration.notSuccessful");
 		}
@@ -1948,7 +2003,7 @@ public class Stripe implements MerchantServicesProvider {
 				defaultCard.delete(options);
 			}
 		} catch(StripeException e) {
-			ConvertedError converted = convertError(CreditCard.maskCreditCardNumber(cardNumber), expirationMonth, expirationYear, e);
+			ConvertedError converted = convertError(CreditCard.maskCreditCardNumber(cardNumber), expirationMonth, expirationYear, e, null);
 			// TODO: Throw ErrorCodeException to provide more details
 			throw new LocalizedIOException(e, accessor, "MerchantServicesProvider.updateCreditCardNumberAndExpiration.notSuccessful");
 		}
@@ -2019,7 +2074,7 @@ public class Stripe implements MerchantServicesProvider {
 				);
 			}
 		} catch(StripeException e) {
-			ConvertedError converted = convertError(creditCard.getMaskedCardNumber(), expirationMonth, expirationYear, e);
+			ConvertedError converted = convertError(creditCard.getMaskedCardNumber(), expirationMonth, expirationYear, e, null);
 			// TODO: Throw ErrorCodeException to provide more details
 			throw new LocalizedIOException(e, accessor, "MerchantServicesProvider.updateCreditCardExpiration.notSuccessful");
 		}
@@ -2043,9 +2098,131 @@ public class Stripe implements MerchantServicesProvider {
 			if(expirationMonth == CreditCard.UNKNOWN_EXPRIATION_MONTH) expirationMonth = null;
 			Short expirationYear = creditCard.getExpirationYear(); // TODO: 2.0: Nullable Short
 			if(expirationYear == CreditCard.UNKNOWN_EXPRIATION_YEAR) expirationYear = null;
-			ConvertedError converted = convertError(creditCard.getMaskedCardNumber(), expirationMonth, expirationYear, e);
+			ConvertedError converted = convertError(creditCard.getMaskedCardNumber(), expirationMonth, expirationYear, e, null);
 			// TODO: Throw ErrorCodeException to provide more details
 			throw new LocalizedIOException(e, accessor, "MerchantServicesProvider.deleteCreditCard.notSuccessful");
+		}
+	}
+
+	@Override
+	public boolean canGetTokenizedCreditCards() {
+		return true;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 * <p>
+	 * See <a href="https://stripe.com/docs/api/customers/list?lang=java">List all customers</a>.
+	 * </p>
+	 */
+	@Override
+	public Map<String, TokenizedCreditCard> getTokenizedCreditCards(Map<String,CreditCard> persistedCards, PrintWriter verboseOut, PrintWriter infoOut, PrintWriter warningOut) throws IOException {
+		try {
+			Map<String, TokenizedCreditCard> map = new LinkedHashMap<>(persistedCards.size() *4/3+1);
+			String startingAfter = null;
+			List<Customer> customers;
+			while(!(customers = Customer.list(CustomerListParams.builder().setLimit(100L).setStartingAfter(startingAfter).build(), options).getData()).isEmpty()) {
+				if(verboseOut != null) verboseOut.println(Stripe.class.getSimpleName() + "(" + providerId + ").getTokenizedCreditCards: customers.size() = " + customers.size());
+				for(Customer customer : customers) {
+					String customerId = customer.getId();
+					startingAfter = customerId;
+
+					// Find the default payment method card settings
+					String brand;
+					String last4;
+					Byte expMonth;
+					Short expYear;
+					{
+						String paymentMethodId;
+						{
+							Tuple2<Customer,String> combined = getDefaultPaymentMethodId(Customer.retrieve(customerId, options));
+							customer = combined.getElement1();
+							paymentMethodId = combined.getElement2();
+						}
+						if(paymentMethodId != null) {
+							PaymentMethod defaultPaymentMethod = PaymentMethod.retrieve(paymentMethodId, options);
+							PaymentMethod.Card defaultCard = defaultPaymentMethod.getCard();
+							brand = defaultCard.getBrand();
+							last4 = defaultCard.getLast4();
+							expMonth = safeCastMonth(defaultCard.getExpMonth());
+							expYear = safeCastYear(defaultCard.getExpYear());
+						} else {
+							// Look for a default source for backward compatibility
+							String defaultSource = customer.getDefaultSource();
+							if(defaultSource != null) {
+								Card defaultCard = (Card)customer.getSources().retrieve(defaultSource, options);
+								brand = defaultCard.getBrand();
+								last4 = defaultCard.getLast4();
+								expMonth = safeCastMonth(defaultCard.getExpMonth());
+								expYear = safeCastYear(defaultCard.getExpYear());
+							} else {
+								if(warningOut != null) {
+									warningOut.println(Stripe.class.getSimpleName() + "(" + providerId + ").getTokenizedCreditCards: Customer does not have any default source: " + customerId);
+								} else if(logger.isLoggable(Level.WARNING)) {
+									logger.log(Level.WARNING, "Customer does not have any default source: " + customerId);
+								}
+								brand = null;
+								last4 = null;
+								expMonth = null;
+								expYear = null;
+							}
+						}
+					}
+					// Find the persisted card
+					CreditCard persistedCard = persistedCards.get(customerId);
+					// Detect any updated expiration date
+					Byte replacementExpirationMonth;
+					Short replacementExpirationYear;
+					{
+						// Find the current expiration, if known
+						Byte expirationMonth;
+						Short expirationYear;
+						if(persistedCard != null) {
+							expirationMonth = persistedCard.getExpirationMonth(); // TODO: 2.0: Make nullable Byte
+							if(expirationMonth == CreditCard.UNKNOWN_EXPRIATION_MONTH) expirationMonth = null;
+							expirationYear = persistedCard.getExpirationYear(); // TODO: 2.0: Make nullable Short
+							if(expirationYear == CreditCard.UNKNOWN_EXPRIATION_YEAR) expirationYear = null;
+						} else {
+							expirationMonth = null;
+							expirationYear = null;
+						}
+						if(
+							expirationMonth == null || !expirationMonth.equals(expMonth)
+							|| expirationYear == null || !expirationYear.equals(expYear)
+						) {
+							// Changed
+							replacementExpirationMonth = expMonth;
+							replacementExpirationYear = expYear;
+						} else {
+							// Not changed
+							replacementExpirationMonth = null;
+							replacementExpirationYear = null;
+						}
+					}
+
+					TokenizedCreditCard card = new TokenizedCreditCard(
+						customerId,
+						getProviderReplacementCombined(brand, last4),
+						getReplacementMaskedCardNumber(persistedCard == null ? null : persistedCard.getMaskedCardNumber(), brand, last4, warningOut),
+						getProviderReplacementCombined(expMonth, expYear),
+						replacementExpirationMonth,
+						replacementExpirationYear
+					);
+					if(verboseOut != null) {
+						verboseOut.println(Stripe.class.getSimpleName() + "(" + providerId + ").getTokenizedCreditCards: providerUniqueId: " + card.getProviderUniqueId() + " ↵");
+						verboseOut.println("    providerReplacementMaskedCardNumber: " + card.getProviderReplacementMaskedCardNumber());
+						verboseOut.println("    replacementMaskedCardNumber........: " + card.getReplacementMaskedCardNumber());
+						verboseOut.println("    providerReplacementExpiration......: " + card.getProviderReplacementExpiration());
+						verboseOut.println("    replacementExpiration..............: " + card.getReplacementExpirationMonth() + CreditCard.EXPIRATION_DISPLAY_SEPARATOR + card.getReplacementExpirationYear());
+					}
+					if(map.put(customerId, card) != null) throw new IOException("Duplicate customerId: " + customerId);
+				}
+			}
+			return Collections.unmodifiableMap(map);
+		} catch(StripeException e) {
+			ConvertedError converted = convertError(null, null, null, e, warningOut);
+			// TODO: Throw ErrorCodeException to provide more details
+			throw new LocalizedIOException(e, accessor, "MerchantServicesProvider.getTokenizedCreditCards.notSuccessful");
 		}
 	}
 }
