@@ -80,6 +80,7 @@ import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Currency;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -123,6 +124,17 @@ import java.util.logging.Logger;
 public class Stripe implements MerchantServicesProvider {
 
 	private static final Logger logger = Logger.getLogger(Stripe.class.getName());
+
+	/**
+	 * Configures performing updates through the map-based interface.  A future version of the underlying API may be able to
+	 * fully use the builder API.
+	 * <p>
+	 * Currently, with Stripe API version 9.7.0, there is no way to unset a value through the builder-pattern API.
+	 * Setting to {@code null} does not send any parameter.  Setting to {@code ""} results in the following error:
+	 * </p>
+	 * <blockquote>You cannot set 'description' to an empty string. We interpret empty strings as null in requests. You may set 'description' to null to delete the property.</blockquote>
+	 */
+	private static final boolean UPDATE_WITH_MAP_API = true; // A future version of the Stripe API may allow this false, with removal of then-unused map-based code.
 
 	/**
 	 * See <a href="https://stripe.com/docs/api/metadata?lang=java">Metadata</a>.
@@ -171,6 +183,48 @@ public class Stripe implements MerchantServicesProvider {
 	 */
 	public String getApiKey() {
 		return apiKey;
+	}
+
+	/**
+	 * Adds a trimmed parameter to a map if the value is non-null and not empty after trimming.
+	 *
+	 * @param update  The parameter will always be added, even if null, to update an existing object
+	 */
+	private static void addParam(boolean update, Map<String,Object> params, String name, String value) {
+		if(value != null) {
+			value = value.trim();
+			if(!value.isEmpty()) {
+				params.put(name, value);
+				return;
+			}
+		}
+		if(update) params.put(name, null);
+	}
+
+	/**
+	 * Adds a parameter to a map if the value is non-null.
+	 *
+	 * @param update  The parameter will always be added, even if null, to update an existing object
+	 */
+	private static void addParam(boolean update, Map<String,Object> params, String name, Object value) {
+		if(value != null) {
+			params.put(name, value);
+			return;
+		}
+		if(update) params.put(name, null);
+	}
+
+	/**
+	 * Adds a parameter to a map if the value is non-null and not empty.
+	 *
+	 * @param update  The parameter will always be added, even if null, to update an existing object
+	 */
+	private static void addParam(boolean update, Map<String,Object> params, String name, Map<?,?> map) {
+		if(map != null && !map.isEmpty()) {
+			params.put(name, map);
+			return;
+		}
+		if(update) params.put(name, null);
 	}
 
 	/**
@@ -372,6 +426,7 @@ public class Stripe implements MerchantServicesProvider {
 		CreditCard creditCard,
 		CustomerUpdateParams.Builder builder
 	) {
+		if(UPDATE_WITH_MAP_API) throw new AssertionError();
 		// Unused: account_balance
 		// Unused: address
 		// Unused: coupon
@@ -393,12 +448,45 @@ public class Stripe implements MerchantServicesProvider {
 	}
 
 	/**
+	 * <ol>
+	 * <li>See <a href="https://stripe.com/docs/api/customers/create?lang=java">Create a customer</a>.</li>
+	 * <li>See <a href="https://stripe.com/docs/api/customers/update?lang=java">Update a customer</a>.</li>
+	 * </ol>
+	 */
+	private static void addCustomerParams(
+		CreditCard creditCard,
+		boolean update,
+		Map<String,Object> customerParams
+	) {
+		if(update && !UPDATE_WITH_MAP_API) throw new AssertionError();
+		// Unused: account_balance
+		// Unused: address
+		// Unused: coupon
+		// Unused: default_source
+		addParam(update, customerParams, "description", creditCard.getComments());
+		addParam(update, customerParams, "email", creditCard.getEmail());
+		// Unused: invoice_prefix
+		// Unused: invoice_settings
+		addParam(update, customerParams, "metadata", makeCustomerMetadata(creditCard, update));
+		addParam(update, customerParams, "name", CreditCard.getFullName(creditCard.getFirstName(), creditCard.getLastName()));
+		// Unused: payment_method
+		addParam(update, customerParams, "phone", creditCard.getPhone());
+		// Unused: preferred_locales
+		// Unused: shipping
+		// source: set other places as-needed
+		// Unused: tax_exempt: TODO?
+		// Unused: tax_id_data
+		// Unused: tax_info
+	}
+
+	/**
 	 * See <a href="https://stripe.com/docs/api/cards/update?lang=java">Update a card</a>.
 	 */
 	private static void addCardParams(
 		CreditCard creditCard,
 		CardUpdateOnCustomerParams.Builder cardParams
 	) {
+		if(UPDATE_WITH_MAP_API) throw new AssertionError();
 		// object: set to "card" other places as-needed
 		// number: set other places as-needed
 		// exp_month: set other places as-needed
@@ -416,6 +504,37 @@ public class Stripe implements MerchantServicesProvider {
 		addParam(true, cardParams::setAddressCountry, creditCard.getCountryCode());
 		// TODO: Move back to metadata, or update payment method once set? addParam(true, billing_details, "email", creditCard.getEmail());
 		// TODO: Move back to metadata, or update payment method once set? addParam(true, billing_details, "phone", creditCard.getPhone());
+	}
+
+	/**
+	 * <ol>
+	 * <li>See <a href="https://stripe.com/docs/api/cards/create?lang=java">Create a card</a>.</li>
+	 * <li>See <a href="https://stripe.com/docs/api/cards/update?lang=java">Update a card</a>.</li>
+	 * </ol>
+	 */
+	private static void addCardParams(
+		CreditCard creditCard,
+		boolean update,
+		Map<String,Object> cardParams
+	) {
+		if(update && !UPDATE_WITH_MAP_API) throw new AssertionError();
+		// object: set to "card" other places as-needed
+		// number: set other places as-needed
+		// exp_month: set other places as-needed
+		// exp_year: set other places as-needed
+		// cvc: set other places as-needed
+		// Unused: currency
+		addParam(update, cardParams, "name", CreditCard.getFullName(creditCard.getFirstName(), creditCard.getLastName()));
+		// metadata: TODO: Any metadata go here instead of customer?
+		// Unused: default_for_currency
+		addParam(update, cardParams, "address_line1", creditCard.getStreetAddress1());
+		addParam(update, cardParams, "address_line2", creditCard.getStreetAddress2());
+		addParam(update, cardParams, "address_city", creditCard.getCity());
+		addParam(update, cardParams, "address_state", creditCard.getState());
+		addParam(update, cardParams, "address_zip", creditCard.getPostalCode());
+		addParam(update, cardParams, "address_country", creditCard.getCountryCode());
+		// TODO: Move back to metadata, or update payment method once set? addParam(update, billing_details, "email", creditCard.getEmail());
+		// TODO: Move back to metadata, or update payment method once set? addParam(update, billing_details, "phone", creditCard.getPhone());
 	}
 
 	/**
@@ -1887,13 +2006,15 @@ public class Stripe implements MerchantServicesProvider {
 			// Find the customer
 			Customer customer = Customer.retrieve(creditCard.getProviderUniqueId(), options);
 			// Update the Customer
-			CustomerUpdateParams customerParams;
-			{
+			if(UPDATE_WITH_MAP_API) {
+				Map<String,Object> customerParams = new HashMap<>();
+				addCustomerParams(creditCard, true, customerParams);
+				customer = customer.update(customerParams, options);
+			} else {
 				CustomerUpdateParams.Builder builder = CustomerUpdateParams.builder();
 				addCustomerParams(creditCard, builder);
-				customerParams = builder.build();
+				customer = customer.update(builder.build(), options);
 			}
-			customer = customer.update(customerParams, options);
 
 			String paymentMethodId;
 			{
@@ -1923,13 +2044,15 @@ public class Stripe implements MerchantServicesProvider {
 				// Find the default Card
 				Card defaultCard = (Card)customer.getSources().retrieve(defaultSource, options);
 				// Update the default Card
-				CardUpdateOnCustomerParams cardParams;
-				{
+				if(UPDATE_WITH_MAP_API) {
+					Map<String,Object> cardParams = new HashMap<>();
+					addCardParams(creditCard, true, cardParams);
+					defaultCard.update(cardParams, options);
+				} else {
 					CardUpdateOnCustomerParams.Builder builder = CardUpdateOnCustomerParams.builder();
 					addCardParams(creditCard, builder);
-					cardParams = builder.build();
+					defaultCard.update(builder.build(), options);
 				}
-				defaultCard.update(cardParams, options);
 			}
 		} catch(StripeException e) {
 			Byte expirationMonth = creditCard.getExpirationMonth(); // TODO: 2.0: Nullable Byte
