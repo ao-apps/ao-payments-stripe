@@ -37,7 +37,7 @@ along with ao-credit-cards-stripe.  If not, see <http://www.gnu.org/licenses />.
 		shortTitle="Changelog"
 		tocLevels="1"
 		datePublished="2016-10-29T19:08:07-0500"
-		dateModified="2019-05-19T22:58:30-0500"
+		dateModified="2019-06-03T14:53:35-0500"
 	>
 		<!-- The current snapshot, unreleased version -->
 		<c:set var="version" value="@{com.aoindustries:ao-credit-cards-stripe:pom.version}" />
@@ -80,6 +80,12 @@ along with ao-credit-cards-stripe.  If not, see <http://www.gnu.org/licenses />.
 						<ao:a href="https://stripe.com/docs/api/payment_intents?lang=java">PaymentIntents API</ao:a>.
 					</li>
 					<li>No longer stripping "ch_" from charge ID from approval code.</li>
+					<li>Using managed dependencies:
+						<ol>
+							<li>This project uses transitive managed dependencies.</li>
+							<li>This project's managed dependencies may also be imported by other projects.</li>
+						</ol>
+					</li>
 					<li>Please note: the next major release of this project will be renamed to <code>ao-payment-stripe</code>.</li>
 					<!-- TODO: Before next production release:
 					<li>Getting updated card details during payment processing for when Stripe has a new card on file automatically.</li>
