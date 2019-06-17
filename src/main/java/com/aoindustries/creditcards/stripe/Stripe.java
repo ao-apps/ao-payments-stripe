@@ -494,7 +494,6 @@ public class Stripe implements MerchantServicesProvider {
 		// cvc: set other places as-needed
 		// Unused: currency
 		addParam(true, cardParams::setName, CreditCard.getFullName(creditCard.getFirstName(), creditCard.getLastName()));
-		// metadata: TODO: Any metadata go here instead of customer?
 		// Unused: default_for_currency
 		addParam(true, cardParams::setAddressLine1, creditCard.getStreetAddress1());
 		addParam(true, cardParams::setAddressLine2, creditCard.getStreetAddress2());
@@ -502,8 +501,6 @@ public class Stripe implements MerchantServicesProvider {
 		addParam(true, cardParams::setAddressState, creditCard.getState());
 		addParam(true, cardParams::setAddressZip, creditCard.getPostalCode());
 		addParam(true, cardParams::setAddressCountry, creditCard.getCountryCode());
-		// TODO: Move back to metadata, or update payment method once set? addParam(true, billing_details, "email", creditCard.getEmail());
-		// TODO: Move back to metadata, or update payment method once set? addParam(true, billing_details, "phone", creditCard.getPhone());
 	}
 
 	/**
@@ -525,7 +522,6 @@ public class Stripe implements MerchantServicesProvider {
 		// cvc: set other places as-needed
 		// Unused: currency
 		addParam(update, cardParams, "name", CreditCard.getFullName(creditCard.getFirstName(), creditCard.getLastName()));
-		// metadata: TODO: Any metadata go here instead of customer?
 		// Unused: default_for_currency
 		addParam(update, cardParams, "address_line1", creditCard.getStreetAddress1());
 		addParam(update, cardParams, "address_line2", creditCard.getStreetAddress2());
@@ -533,8 +529,6 @@ public class Stripe implements MerchantServicesProvider {
 		addParam(update, cardParams, "address_state", creditCard.getState());
 		addParam(update, cardParams, "address_zip", creditCard.getPostalCode());
 		addParam(update, cardParams, "address_country", creditCard.getCountryCode());
-		// TODO: Move back to metadata, or update payment method once set? addParam(update, billing_details, "email", creditCard.getEmail());
-		// TODO: Move back to metadata, or update payment method once set? addParam(update, billing_details, "phone", creditCard.getPhone());
 	}
 
 	/**
