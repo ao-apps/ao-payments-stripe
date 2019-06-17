@@ -1488,11 +1488,11 @@ public class Stripe implements MerchantServicesProvider {
 		}
 		if(paymentMethodId == null) {
 			// Find up to 10 attached
-			// TODO: Pagination here, too?
 			PaymentMethodCollection paymentMethodCollection = PaymentMethod.list(
 				PaymentMethodListParams.builder()
 					.setCustomer(customer.getId())
 					.setType(PaymentMethodListParams.Type.CARD)
+					.setLimit(100L) // Not performing pagination, it is very unlikely there will be more than 100 payment methods and all are the legacy card API
 					.build(),
 				options
 			);
