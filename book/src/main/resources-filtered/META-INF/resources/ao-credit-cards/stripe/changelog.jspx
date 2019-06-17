@@ -36,7 +36,7 @@ along with ao-credit-cards-stripe.  If not, see <http://www.gnu.org/licenses />.
 		shortTitle="Changelog"
 		tocLevels="1"
 		datePublished="2016-10-29T19:08:07-0500"
-		dateModified="2019-06-03T14:53:35-0500"
+		dateModified="2019-06-17T07:43:43-0500"
 	>
 		<!-- The current snapshot, unreleased version -->
 		<c:set var="version" value="@{com.aoindustries:ao-credit-cards-stripe:pom.version}" />
@@ -79,6 +79,11 @@ along with ao-credit-cards-stripe.  If not, see <http://www.gnu.org/licenses />.
 						<ao:a href="https://stripe.com/docs/api/payment_intents?lang=java">PaymentIntents API</ao:a>.
 					</li>
 					<li>No longer stripping "ch_" from charge ID from approval code.</li>
+					<li>
+						Implemented replacement masked card numbers and expiration dates on both transactions and
+						during background synchronization.  This allows automatically updated card details to
+						propagate back to user interfaces driven by this API.
+					</li>
 					<li>Using managed dependencies:
 						<ol>
 							<li>This project uses transitive managed dependencies.</li>
@@ -86,20 +91,6 @@ along with ao-credit-cards-stripe.  If not, see <http://www.gnu.org/licenses />.
 						</ol>
 					</li>
 					<li>Please note: the next major release of this project will be renamed to <code>ao-payment-stripe</code>.</li>
-					<!-- TODO: Before next production release:
-					<li>Getting updated card details during payment processing for when Stripe has a new card on file automatically.</li>
-					<li>Supporting callbacks to get notified by Stripe when new tokenized card is updated.</li>
-					<li>
-						Maybe store card type instead of first-four digits, since only card type returned by Stripe when card updated.
-						Alternatively, store some masked-out default value when not known, like 4XXX for Visa.
-					</li>
-					<li>
-						Support locally stored encrypted version of the cards, too?
-						These values would not be updated completely as new card information is available on tokenized cards,
-						but can give the API user a mechanism to switch providers.  Using GPG, with the private key never
-						on the server, and ideally kept safe completely offline, this should be fairly safe.
-					</li>
-					-->
 				</ul>
 			</changelog:release>
 		</c:if>
