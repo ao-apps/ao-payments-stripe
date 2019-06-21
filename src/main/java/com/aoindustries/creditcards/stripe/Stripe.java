@@ -129,7 +129,7 @@ public class Stripe implements MerchantServicesProvider {
 	 * Configures performing updates through the map-based interface.  A future version of the underlying API may be able to
 	 * fully use the builder API.
 	 * <p>
-	 * Currently, with Stripe API version 9.7.0, there is no way to unset a value through the builder-pattern API.
+	 * Currently, with Stripe API version 10.1.0, there is no way to unset a value through the builder-pattern API.
 	 * Setting to {@code null} does not send any parameter.  Setting to {@code ""} results in the following error:
 	 * </p>
 	 * <blockquote>You cannot set 'description' to an empty string. We interpret empty strings as null in requests. You may set 'description' to null to delete the property.</blockquote>

@@ -36,7 +36,7 @@ along with ao-credit-cards-stripe.  If not, see <http://www.gnu.org/licenses />.
 		shortTitle="Changelog"
 		tocLevels="1"
 		datePublished="2016-10-29T19:08:07-0500"
-		dateModified="2019-06-19T09:48:11-0500"
+		dateModified="2019-06-21T00:51:58-0500"
 	>
 		<!-- The current snapshot, unreleased version -->
 		<c:set var="version" value="@{com.aoindustries:ao-credit-cards-stripe:pom.version}" />
@@ -55,8 +55,8 @@ along with ao-credit-cards-stripe.  If not, see <http://www.gnu.org/licenses />.
 				<ul>
 					<li>Minimum Java version changed from 1.6 to 1.8.</li>
 					<li>
-						Upgraded to current version of <ao:a href="https://search.maven.org/artifact/com.stripe/stripe-java/9.7.0/jar">com.stripe:stripe-java:jar:9.7.0</ao:a>,
-						which uses <ao:a href="https://stripe.com/docs/upgrades#2019-03-14">Stripe API version 2019-03-14</ao:a>.
+						Upgraded to current version of <ao:a href="https://search.maven.org/artifact/com.stripe/stripe-java/10.1.0/jar">com.stripe:stripe-java:jar:10.1.0</ao:a>,
+						which uses <ao:a href="https://stripe.com/docs/upgrades#2019-05-16">Stripe API version 2019-05-16</ao:a>.
 					</li>
 					<li>
 						The API no longer prefixes <code>AO#</code> to statement descriptors when the order number contains any alphabetic characters.  Instead,
