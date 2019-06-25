@@ -36,7 +36,7 @@ along with ao-credit-cards-stripe.  If not, see <http://www.gnu.org/licenses />.
 		shortTitle="Changelog"
 		tocLevels="1"
 		datePublished="2016-10-29T19:08:07-0500"
-		dateModified="2019-06-21T00:58:38-0500"
+		dateModified="2019-06-25T06:17:26-0500"
 	>
 		<!-- The current snapshot, unreleased version -->
 		<c:set var="version" value="@{com.aoindustries:ao-credit-cards-stripe:pom.version}" />
@@ -51,7 +51,14 @@ along with ao-credit-cards-stripe.  If not, see <http://www.gnu.org/licenses />.
 				groupId="@{documented.groupId}"
 				artifactId="@{documented.artifactId}"
 				scmUrl="@{documented.scm.url}"
-			/>
+			>
+				<ul>
+					<li>
+						Upgraded to current version of <ao:a href="https://search.maven.org/artifact/com.stripe/stripe-java/10.3.0/jar">com.stripe:stripe-java:jar:10.3.0</ao:a>,
+						which uses <ao:a href="https://stripe.com/docs/upgrades#2019-05-16">Stripe API version 2019-05-16</ao:a>.
+					</li>
+				</ul>
+			</changelog:release>
 		</c:if>
 
 		<changelog:release
