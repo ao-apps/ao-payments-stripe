@@ -1609,13 +1609,12 @@ public class Stripe implements MerchantServicesProvider {
 						if(!orderNumber.isEmpty()) {
 							// Avoid "The statement descriptor must contain at least one alphabetic character."
 							boolean hasAlpha = false;
-							for(int i = 0, len = orderNumber.length(); i < len; ) {
-								int codepoint = orderNumber.codePointAt(i);
-								if(Character.isAlphabetic(codepoint)) {
+							for (int i = 0, len = orderNumber.length(), codePoint; i < len; i += Character.charCount(codePoint)) {
+								codePoint = orderNumber.codePointAt(i);
+								if(Character.isAlphabetic(codePoint)) {
 									hasAlpha = true;
 									break;
 								}
-								i += Character.charCount(codepoint);
 							}
 							String statement_descriptor = hasAlpha ? orderNumber : (STATEMENT_DESCRIPTOR_PREFIX + orderNumber);
 							if(statement_descriptor.length() <= MAX_STATEMENT_DESCRIPTOR_LEN) {
