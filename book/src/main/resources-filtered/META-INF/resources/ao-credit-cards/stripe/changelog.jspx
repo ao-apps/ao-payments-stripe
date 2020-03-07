@@ -37,7 +37,7 @@ along with ao-credit-cards-stripe.  If not, see <http://www.gnu.org/licenses />.
 		shortTitle="Changelog"
 		tocLevels="1"
 		datePublished="2016-10-29T19:08:07-0500"
-		dateModified="2019-10-12T23:39:15-0500"
+		dateModified="2020-03-07T06:01:29-0600"
 	>
 		<!-- The current snapshot, unreleased version -->
 		<c:set var="version" value="@{com.aoindustries:ao-credit-cards-stripe:pom.version}" />
@@ -49,11 +49,15 @@ along with ao-credit-cards-stripe.  If not, see <http://www.gnu.org/licenses />.
 			<changelog:release
 				projectName="@{documented.name}"
 				version="#{version}"
-				groupId="@{documented.groupId}"
+				groupId="@{project.groupId}"
 				artifactId="@{documented.artifactId}"
-				scmUrl="@{documented.scm.url}"
+				scmUrl="@{project.scm.url}"
 			>
 				<ul>
+					<li>
+						Reduced use of property substitutions in <code>pom.xml</code>.
+						This is to help 3rd-party parsers that fail to perform full Maven-compatible substitutions.
+					</li>
 					<li>
 						Upgraded to current version of <ao:a href="https://search.maven.org/artifact/com.stripe/stripe-java/13.1.0/jar">com.stripe:stripe-java:jar:13.1.0</ao:a>,
 						which uses <ao:a href="https://stripe.com/docs/upgrades#2019-10-08">Stripe API version 2019-10-08</ao:a>.
@@ -66,9 +70,9 @@ along with ao-credit-cards-stripe.  If not, see <http://www.gnu.org/licenses />.
 			projectName="@{documented.name}"
 			version="1.1.1"
 			datePublished="2019-10-05T17:27:40-0500"
-			groupId="@{documented.groupId}"
+			groupId="@{project.groupId}"
 			artifactId="@{documented.artifactId}"
-			scmUrl="@{documented.scm.url}"
+			scmUrl="@{project.scm.url}"
 		>
 			<ul>
 				<li>
@@ -82,9 +86,9 @@ along with ao-credit-cards-stripe.  If not, see <http://www.gnu.org/licenses />.
 			projectName="@{documented.name}"
 			version="1.1.0"
 			datePublished="2019-06-21T00:58:38-0500"
-			groupId="@{documented.groupId}"
+			groupId="@{project.groupId}"
 			artifactId="@{documented.artifactId}"
-			scmUrl="@{documented.scm.url}"
+			scmUrl="@{project.scm.url}"
 		>
 			<ul>
 				<li>Minimum Java version changed from 1.6 to 1.8.</li>
@@ -132,9 +136,9 @@ along with ao-credit-cards-stripe.  If not, see <http://www.gnu.org/licenses />.
 			projectName="@{documented.name}"
 			version="1.0.3"
 			datePublished="2017-07-20T01:08:25-0500"
-			groupId="@{documented.groupId}"
+			groupId="@{project.groupId}"
 			artifactId="@{documented.artifactId}"
-			scmUrl="@{documented.scm.url}"
+			scmUrl="@{project.scm.url}"
 		>
 			<ul>
 				<li>Updated dependencies.</li>
@@ -145,9 +149,9 @@ along with ao-credit-cards-stripe.  If not, see <http://www.gnu.org/licenses />.
 			projectName="@{documented.name}"
 			version="1.0.2"
 			datePublished="2016-11-15T23:03:34-0600"
-			groupId="@{documented.groupId}"
+			groupId="@{project.groupId}"
 			artifactId="@{documented.artifactId}"
-			scmUrl="@{documented.scm.url}"
+			scmUrl="@{project.scm.url}"
 		>
 			<ul>
 				<li>New <core:link book="/ao-oss-parent" page="/index.jspx" /> POM to simplify <code>pom.xml</code> files.</li>
@@ -161,9 +165,9 @@ along with ao-credit-cards-stripe.  If not, see <http://www.gnu.org/licenses />.
 			projectName="@{documented.name}"
 			version="1.0.1"
 			datePublished="2016-10-20T18:34:00-0500"
-			groupId="@{documented.groupId}"
+			groupId="@{project.groupId}"
 			artifactId="@{documented.artifactId}"
-			scmUrl="@{documented.scm.url}"
+			scmUrl="@{project.scm.url}"
 		>
 			<ul>
 				<li>Improved Javadoc formatting.</li>
@@ -175,9 +179,9 @@ along with ao-credit-cards-stripe.  If not, see <http://www.gnu.org/licenses />.
 			projectName="@{documented.name}"
 			version="1.0.0"
 			datePublished="2016-10-06T12:43:00-0500"
-			groupId="@{documented.groupId}"
+			groupId="@{project.groupId}"
 			artifactId="@{documented.artifactId}"
-			scmUrl="@{documented.scm.url}"
+			scmUrl="@{project.scm.url}"
 		>
 			<ul>
 				<li>Project moved to GitHub and Maven.</li>
