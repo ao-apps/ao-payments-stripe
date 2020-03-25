@@ -88,6 +88,7 @@ import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.apache.commons.lang3.NotImplementedException;
 
 /**
  * Provider for Stripe<br>
@@ -1911,15 +1912,13 @@ public class Stripe implements MerchantServicesProvider {
 	}
 
 	@Override
-	@SuppressWarnings("deprecation")
 	public VoidResult voidTransaction(Transaction transaction) {
-		throw new com.aoindustries.exception.NotImplementedException();
+		throw new NotImplementedException("TODO");
 	}
 
 	@Override
-	@SuppressWarnings("deprecation")
 	public CreditResult credit(TransactionRequest transactionRequest, CreditCard creditCard) {
-		throw new com.aoindustries.exception.NotImplementedException();
+		throw new NotImplementedException("TODO");
 	}
 
 	@Override
