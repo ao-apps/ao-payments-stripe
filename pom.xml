@@ -47,7 +47,6 @@ along with ao-credit-cards-stripe.  If not, see <http://www.gnu.org/licenses />.
 	<inceptionYear>2015</inceptionYear>
 
 	<scm>
-		<!-- Can't inherit due to multi-module -->
 		<connection>scm:git:git://github.com/aoindustries/ao-credit-cards-stripe.git</connection>
 		<developerConnection>scm:git:git@github.com:aoindustries/ao-credit-cards-stripe.git</developerConnection>
 		<url>https://github.com/aoindustries/ao-credit-cards-stripe</url>
