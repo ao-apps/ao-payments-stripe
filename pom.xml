@@ -38,9 +38,9 @@ along with ao-credit-cards-stripe.  If not, see <http://www.gnu.org/licenses />.
 		<shortTitle>Stripe</shortTitle>
 		<description.html><![CDATA[Provider for <a target="${javadoc.target}" href="https://stripe.com/">Stripe</a>.]]></description.html>
 		<!-- Dependencies -->
-		<org.apache.commons.commons-lang3.version>3.10</org.apache.commons.commons-lang3.version>
-		<com.google.code.gson.gson.version>2.8.6</com.google.code.gson.gson.version>
-		<com.stripe.stripe-java.version>19.12.0</com.stripe.stripe-java.version>
+		<commons-lang3.version>3.10</commons-lang3.version>
+		<gson.version>2.8.6</gson.version>
+		<stripe-java.version>19.12.0</stripe-java.version>
 	</properties>
 
 	<name>AO Credit Cards Stripe</name>
@@ -78,17 +78,80 @@ along with ao-credit-cards-stripe.  If not, see <http://www.gnu.org/licenses />.
 			<build>
 				<plugins>
 					<plugin>
+						<groupId>org.apache.maven.plugins</groupId><artifactId>maven-dependency-plugin</artifactId>
+						<executions>
+							<execution>
+								<id>unpack.offlinkLinks</id>
+								<phase>generate-sources</phase>
+								<goals><goal>unpack</goal></goals>
+								<configuration>
+									<artifactItems>
+										<!-- Direct -->
+										<artifactItem>
+											<groupId>com.aoindustries</groupId><artifactId>ao-credit-cards-api</artifactId>
+											<classifier>javadoc</classifier><includes>element-list, package-list</includes>
+											<outputDirectory>${project.build.directory}/offlineLinks/com.aoindustries/ao-credit-cards-api</outputDirectory>
+										</artifactItem>
+										<artifactItem>
+											<groupId>com.aoindustries</groupId><artifactId>ao-lang</artifactId>
+											<classifier>javadoc</classifier><includes>element-list, package-list</includes>
+											<outputDirectory>${project.build.directory}/offlineLinks/com.aoindustries/ao-lang</outputDirectory>
+										</artifactItem>
+										<artifactItem>
+											<groupId>com.aoindustries</groupId><artifactId>aocode-public</artifactId>
+											<classifier>javadoc</classifier><includes>element-list, package-list</includes>
+											<outputDirectory>${project.build.directory}/offlineLinks/com.aoindustries/aocode-public</outputDirectory>
+										</artifactItem>
+										<artifactItem>
+											<groupId>org.apache.commons</groupId><artifactId>commons-lang3</artifactId>
+											<classifier>javadoc</classifier><includes>element-list, package-list</includes>
+											<outputDirectory>${project.build.directory}/offlineLinks/org.apache.commons/commons-lang3</outputDirectory>
+										</artifactItem>
+										<artifactItem>
+											<groupId>com.stripe</groupId><artifactId>stripe-java</artifactId>
+											<classifier>javadoc</classifier><includes>element-list, package-list</includes>
+											<outputDirectory>${project.build.directory}/offlineLinks/com.stripe/stripe-java</outputDirectory>
+										</artifactItem>
+									</artifactItems>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+					<plugin>
 						<groupId>org.apache.maven.plugins</groupId><artifactId>maven-javadoc-plugin</artifactId>
 						<configuration>
 							<links>
 								<link>${javadoc.link.javase}</link>
 								<!-- Direct -->
-								<link>https://aoindustries.com/ao-credit-cards/api/apidocs/</link>
-								<link>https://aoindustries.com/ao-lang/apidocs/</link>
-								<link>https://aoindustries.com/aocode-public/apidocs/</link>
-								<link>https://commons.apache.org/proper/commons-lang/javadocs/api-${org.apache.commons.commons-lang3.version}/</link>
-								<link>https://javadoc.io/doc/com.stripe/stripe-java/${com.stripe.stripe-java.version}/</link>
+								<!-- offlineLink: <groupId>com.aoindustries</groupId><artifactId>ao-credit-cards-api</artifactId> -->
+								<!-- offlineLink: <groupId>com.aoindustries</groupId><artifactId>ao-lang</artifactId> -->
+								<!-- offlineLink: <groupId>com.aoindustries</groupId><artifactId>aocode-public</artifactId> -->
+								<!-- offlineLink: <groupId>org.apache.commons</groupId><artifactId>commons-lang3</artifactId> -->
+								<!-- offlineLink: <groupId>com.stripe</groupId><artifactId>stripe-java</artifactId> -->
 							</links>
+							<offlineLinks>
+								<!-- Direct -->
+								<offlineLink>
+									<url>https://aoindustries.com/ao-credit-cards/api/apidocs/</url>
+									<location>${project.build.directory}/offlineLinks/com.aoindustries/ao-credit-cards-api</location>
+								</offlineLink>
+								<offlineLink>
+									<url>https://aoindustries.com/ao-lang/apidocs/</url>
+									<location>${project.build.directory}/offlineLinks/com.aoindustries/ao-lang</location>
+								</offlineLink>
+								<offlineLink>
+									<url>https://aoindustries.com/aocode-public/apidocs/</url>
+									<location>${project.build.directory}/offlineLinks/com.aoindustries/aocode-public</location>
+								</offlineLink>
+								<offlineLink>
+									<url>https://commons.apache.org/proper/commons-lang/javadocs/api-${commons-lang3.version}/</url>
+									<location>${project.build.directory}/offlineLinks/org.apache.commons/commons-lang3</location>
+								</offlineLink>
+								<offlineLink>
+									<url>https://javadoc.io/doc/com.stripe/stripe-java/${stripe-java.version}/</url>
+									<location>${project.build.directory}/offlineLinks/com.stripe/stripe-java</location>
+								</offlineLink>
+							</offlineLinks>
 						</configuration>
 					</plugin>
 				</plugins>
@@ -109,10 +172,10 @@ along with ao-credit-cards-stripe.  If not, see <http://www.gnu.org/licenses />.
 				<groupId>com.aoindustries</groupId><artifactId>aocode-public</artifactId><version>4.1.0${POST-SNAPSHOT}</version>
 			</dependency>
 			<dependency>
-				<groupId>org.apache.commons</groupId><artifactId>commons-lang3</artifactId><version>${org.apache.commons.commons-lang3.version}</version>
+				<groupId>org.apache.commons</groupId><artifactId>commons-lang3</artifactId><version>${commons-lang3.version}</version>
 			</dependency>
 			<dependency>
-				<groupId>com.stripe</groupId><artifactId>stripe-java</artifactId><version>${com.stripe.stripe-java.version}</version>
+				<groupId>com.stripe</groupId><artifactId>stripe-java</artifactId><version>${stripe-java.version}</version>
 			</dependency>
 			<!-- Transitive -->
 			<dependency>
@@ -138,7 +201,7 @@ along with ao-credit-cards-stripe.  If not, see <http://www.gnu.org/licenses />.
 			</dependency>
 			<!-- Runtime Transitive -->
 			<dependency>
-				<groupId>com.google.code.gson</groupId><artifactId>gson</artifactId><version>${com.google.code.gson.gson.version}</version>
+				<groupId>com.google.code.gson</groupId><artifactId>gson</artifactId><version>${gson.version}</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
