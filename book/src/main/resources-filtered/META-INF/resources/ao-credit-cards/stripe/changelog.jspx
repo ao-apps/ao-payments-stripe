@@ -175,6 +175,7 @@ along with ao-credit-cards-stripe.  If not, see <http://www.gnu.org/licenses />.
 				<li>New <core:link book="/ao-oss-parent" page="/index.jspx" /> POM to simplify <code>pom.xml</code> files.</li>
 				<li>Project documentation moved to per-project book in <ao:a href="https://semanticcms.com/">SemanticCMS</ao:a> format.</li>
 				<li>Added changelog as top-level project link.</li>
+				<!-- TODO: Fix all to https, and make sure still works -->
 				<li>Reverted dependency to <ao:a href="http://search.maven.org/#artifactdetails|com.stripe|stripe-java|2.10.2|jar">com.stripe:stripe-java:2.10.2</ao:a> pending additional testing of the 3.* release.</li>
 			</ul>
 		</changelog:release>
