@@ -55,7 +55,7 @@ along with ao-credit-cards-stripe.  If not, see <http://www.gnu.org/licenses />.
 			>
 				<ul>
 					<li>
-						Upgraded to current version of <ao:a href="https://search.maven.org/artifact/com.stripe/stripe-java/19.40.0/jar">com.stripe:stripe-java:jar:19.40.0</ao:a>,
+						Upgraded to current version of <ao:a href="https://search.maven.org/artifact/com.stripe/stripe-java/19.42.0/jar">com.stripe:stripe-java:jar:19.42.0</ao:a>,
 						which continues to use <ao:a href="https://stripe.com/docs/upgrades#2020-03-02">Stripe API version 2020-03-02</ao:a>.
 					</li>
 					<li>Updated dependencies.</li>
