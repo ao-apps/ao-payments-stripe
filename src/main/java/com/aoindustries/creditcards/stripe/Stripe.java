@@ -237,6 +237,7 @@ public class Stripe implements MerchantServicesProvider {
 	 * @return  {@code true} when the parameter was set, even if set to {@code null}.
 	 *          {@code false otherwise}.
 	 */
+	@SuppressWarnings("overloads")
 	private static boolean addParam(boolean update, Consumer<String> params, String value) {
 		if(value != null) {
 			value = value.trim();
@@ -261,6 +262,7 @@ public class Stripe implements MerchantServicesProvider {
 	 * @return  {@code true} when the parameter was set, even if set to {@code null}.
 	 *          {@code false otherwise}.
 	 */
+	@SuppressWarnings("overloads")
 	private static <V> boolean addParam(boolean update, Consumer<V> params, V value) {
 		if(value != null) {
 			params.accept(value);
@@ -282,6 +284,7 @@ public class Stripe implements MerchantServicesProvider {
 	 * @return  {@code true} when the parameter was set, even if set to an empty map for {@code null}.
 	 *          {@code false otherwise}.
 	 */
+	@SuppressWarnings("overloads")
 	private static <K,V> boolean addParam(boolean update, Consumer<Map<K,V>> params, Map<K,V> map) {
 		if(map != null && !map.isEmpty()) {
 			params.accept(map);
@@ -961,15 +964,14 @@ public class Stripe implements MerchantServicesProvider {
 			String declineCode = stripeError == null ? null : stripeError.getDeclineCode();
 
 			// For card errors, the ID of the failed charge.
-			// TODO: What to do with charge?
-			String charge = stripeError == null ? null : stripeError.getCharge();
+			// Unused: String charge = stripeError == null ? null : stripeError.getCharge();
 
 			// Get values from specific exception types.  TODO: Necessary or will this always match StripeError?
 			if(e instanceof CardException) {
 				CardException ce = (CardException)e;
 				if(param == null) param = ce.getParam();
 				if(declineCode == null) declineCode = ce.getDeclineCode();
-				if(charge == null) charge = ce.getCharge();
+				// Unused: if(charge == null) charge = ce.getCharge();
 			} else if(e instanceof InvalidRequestException) {
 				InvalidRequestException ire = (InvalidRequestException)e;
 				if(param == null) param = ire.getParam();
@@ -2275,6 +2277,7 @@ public class Stripe implements MerchantServicesProvider {
 	 * </p>
 	 */
 	@Override
+	@SuppressWarnings("AssignmentToForLoopParameter")
 	public Map<String, TokenizedCreditCard> getTokenizedCreditCards(Map<String,CreditCard> persistedCards, PrintWriter verboseOut, PrintWriter infoOut, PrintWriter warningOut) throws IOException {
 		try {
 			Map<String, TokenizedCreditCard> map = new LinkedHashMap<>(persistedCards.size() *4/3+1);
