@@ -66,6 +66,7 @@ import com.stripe.net.RequestOptions;
 import com.stripe.param.CardUpdateOnCustomerParams;
 import com.stripe.param.CustomerCreateParams;
 import com.stripe.param.CustomerListParams;
+import com.stripe.param.CustomerRetrieveParams;
 import com.stripe.param.CustomerUpdateParams;
 import com.stripe.param.PaymentIntentCaptureParams;
 import com.stripe.param.PaymentIntentCreateParams;
@@ -1506,6 +1507,8 @@ public class Stripe implements MerchantServicesProvider {
 											.setDefaultPaymentMethod(paymentMethodId)
 											.build()
 									)
+									// "sources" no longer included by default: https://stripe.com/docs/upgrades#2020-08-27
+									.addExpand("sources")
 									.build(),
 								options
 							);
@@ -1583,7 +1586,14 @@ public class Stripe implements MerchantServicesProvider {
 						// Is a stored card
 						Customer customer;
 						{
-							Tuple2<Customer,String> combined = getDefaultPaymentMethodId(Customer.retrieve(customerId, options));
+							Tuple2<Customer,String> combined = getDefaultPaymentMethodId(
+								Customer.retrieve(
+									customerId,
+									// "sources" no longer included by default: https://stripe.com/docs/upgrades#2020-08-27
+									CustomerRetrieveParams.builder().addExpand("sources").build(),
+									options
+								)
+							);
 							customer = combined.getElement1();
 							paymentMethodId = combined.getElement2();
 						}
@@ -1996,15 +2006,24 @@ public class Stripe implements MerchantServicesProvider {
 	public void updateCreditCard(CreditCard creditCard) throws IOException {
 		try {
 			// Find the customer
-			Customer customer = Customer.retrieve(creditCard.getProviderUniqueId(), options);
+			Customer customer = Customer.retrieve(
+				creditCard.getProviderUniqueId(),
+				// "sources" no longer included by default: https://stripe.com/docs/upgrades#2020-08-27
+				CustomerRetrieveParams.builder().addExpand("sources").build(),
+				options
+			);
 			// Update the Customer
 			if(UPDATE_WITH_MAP_API) {
 				Map<String,Object> customerParams = new HashMap<>();
 				addCustomerParams(creditCard, true, customerParams);
+				// "sources" no longer included by default: https://stripe.com/docs/upgrades#2020-08-27
+				customerParams.put("expand", Collections.singletonList("sources"));
 				customer = customer.update(customerParams, options);
 			} else {
 				CustomerUpdateParams.Builder builder = CustomerUpdateParams.builder();
 				addCustomerParams(creditCard, builder);
+				// "sources" no longer included by default: https://stripe.com/docs/upgrades#2020-08-27
+				builder.addExpand("sources");
 				customer = customer.update(builder.build(), options);
 			}
 
@@ -2077,7 +2096,12 @@ public class Stripe implements MerchantServicesProvider {
 	) throws IOException {
 		try {
 			// Find the customer
-			Customer customer = Customer.retrieve(creditCard.getProviderUniqueId(), options);
+			Customer customer = Customer.retrieve(
+				creditCard.getProviderUniqueId(),
+				// "sources" no longer included by default: https://stripe.com/docs/upgrades#2020-08-27
+				CustomerRetrieveParams.builder().addExpand("sources").build(),
+				options
+			);
 
 			String paymentMethodId;
 			{
@@ -2114,6 +2138,8 @@ public class Stripe implements MerchantServicesProvider {
 							.setDefaultPaymentMethod(paymentMethod.getId())
 							.build()
 					)
+					// "sources" no longer included by default: https://stripe.com/docs/upgrades#2020-08-27
+					.addExpand("sources")
 					.build(),
 				options
 			);
@@ -2158,7 +2184,12 @@ public class Stripe implements MerchantServicesProvider {
 	) throws IOException {
 		try {
 			// Find the customer
-			Customer customer = Customer.retrieve(creditCard.getProviderUniqueId(), options);
+			Customer customer = Customer.retrieve(
+				creditCard.getProviderUniqueId(),
+				// "sources" no longer included by default: https://stripe.com/docs/upgrades#2020-08-27
+				CustomerRetrieveParams.builder().addExpand("sources").build(),
+				options
+			);
 
 			String paymentMethodId;
 			{
@@ -2249,7 +2280,17 @@ public class Stripe implements MerchantServicesProvider {
 			Map<String, TokenizedCreditCard> map = new LinkedHashMap<>(persistedCards.size() *4/3+1);
 			String startingAfter = null;
 			List<Customer> customers;
-			while(!(customers = Customer.list(CustomerListParams.builder().setLimit(100L).setStartingAfter(startingAfter).build(), options).getData()).isEmpty()) {
+			while(
+				!(customers = Customer.list(
+					CustomerListParams.builder()
+						.setLimit(100L)
+						.setStartingAfter(startingAfter)
+						// "sources" no longer included by default: https://stripe.com/docs/upgrades#2020-08-27
+						.addExpand("sources")
+						.build(),
+					options
+				).getData()).isEmpty()
+			) {
 				if(verboseOut != null) verboseOut.println(Stripe.class.getSimpleName() + "(" + providerId + ").getTokenizedCreditCards: customers.size() = " + customers.size());
 				for(Customer customer : customers) {
 					String customerId = customer.getId();
@@ -2263,7 +2304,14 @@ public class Stripe implements MerchantServicesProvider {
 					{
 						String paymentMethodId;
 						{
-							Tuple2<Customer,String> combined = getDefaultPaymentMethodId(Customer.retrieve(customerId, options));
+							Tuple2<Customer,String> combined = getDefaultPaymentMethodId(
+								Customer.retrieve(
+									customerId,
+									// "sources" no longer included by default: https://stripe.com/docs/upgrades#2020-08-27
+									CustomerRetrieveParams.builder().addExpand("sources").build(),
+									options
+								)
+							);
 							customer = combined.getElement1();
 							paymentMethodId = combined.getElement2();
 						}
