@@ -22,6 +22,7 @@
  */
 package com.aoindustries.creditcards.stripe;
 
+import com.aoindustries.collections.AoCollections;
 import static com.aoindustries.creditcards.ApplicationResourcesAccessor.accessor;
 import com.aoindustries.creditcards.AuthorizationResult;
 import com.aoindustries.creditcards.CaptureResult;
@@ -2280,7 +2281,7 @@ public class Stripe implements MerchantServicesProvider {
 	@SuppressWarnings("AssignmentToForLoopParameter")
 	public Map<String, TokenizedCreditCard> getTokenizedCreditCards(Map<String,CreditCard> persistedCards, PrintWriter verboseOut, PrintWriter infoOut, PrintWriter warningOut) throws IOException {
 		try {
-			Map<String, TokenizedCreditCard> map = new LinkedHashMap<>(persistedCards.size() *4/3+1);
+			Map<String, TokenizedCreditCard> map = AoCollections.newLinkedHashMap(persistedCards.size());
 			String startingAfter = null;
 			List<Customer> customers;
 			while(
