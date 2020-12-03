@@ -23,7 +23,7 @@
 package com.aoindustries.creditcards.stripe;
 
 import com.aoindustries.collections.AoCollections;
-import static com.aoindustries.creditcards.ApplicationResourcesAccessor.accessor;
+import static com.aoindustries.creditcards.Resources.RESOURCES;
 import com.aoindustries.creditcards.AuthorizationResult;
 import com.aoindustries.creditcards.CaptureResult;
 import com.aoindustries.creditcards.CreditCard;
@@ -40,7 +40,6 @@ import com.aoindustries.creditcards.TransactionResult;
 import com.aoindustries.creditcards.VoidResult;
 import com.aoindustries.io.LocalizedIOException;
 import com.aoindustries.math.SafeMath;
-import com.aoindustries.util.Tuple2;
 import com.stripe.exception.ApiConnectionException;
 import com.stripe.exception.ApiException;
 import com.stripe.exception.AuthenticationException;
@@ -91,6 +90,7 @@ import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.commons.lang3.NotImplementedException;
+import org.apache.commons.lang3.tuple.Pair;
 
 /**
  * Provider for Stripe<br>
@@ -1375,7 +1375,7 @@ public class Stripe implements MerchantServicesProvider {
 		}
 	}
 
-	private static Tuple2<String,AuthorizationResult.AvsResult> getAvsResult(String addressResult, String zipResult) {
+	private static Pair<String,AuthorizationResult.AvsResult> getAvsResult(String addressResult, String zipResult) {
 		final String providerAvsResult;
 		final AuthorizationResult.AvsResult avsResult;
 		if(addressResult != null) {
@@ -1443,7 +1443,7 @@ public class Stripe implements MerchantServicesProvider {
 				avsResult = AuthorizationResult.AvsResult.ADDRESS_NOT_PROVIDED;
 			}
 		}
-		return new Tuple2<>(providerAvsResult, avsResult);
+		return Pair.of(providerAvsResult, avsResult);
 	}
 
 	@Override
@@ -1475,7 +1475,7 @@ public class Stripe implements MerchantServicesProvider {
 	 * <li>See <a href="https://stripe.com/docs/api/customers/update?lang=java">Update a customer</a>.</li>
 	 * </ol>
 	 */
-	private Tuple2<Customer,String> getDefaultPaymentMethodId(Customer customer) throws StripeException {
+	private Pair<Customer,String> getDefaultPaymentMethodId(Customer customer) throws StripeException {
 		String paymentMethodId = customer.getInvoiceSettings().getDefaultPaymentMethod();
 		String defaultSource = customer.getDefaultSource();
 		// Ignore when is a default source, which should be updated through the legacy card API
@@ -1521,7 +1521,7 @@ public class Stripe implements MerchantServicesProvider {
 				}
 			}
 		}
-		return new Tuple2<>(customer, paymentMethodId);
+		return Pair.of(customer, paymentMethodId);
 	}
 
 	private static final BigInteger LONG_MAX_VALUE = BigInteger.valueOf(Long.MAX_VALUE);
@@ -1589,7 +1589,7 @@ public class Stripe implements MerchantServicesProvider {
 						// Is a stored card
 						Customer customer;
 						{
-							Tuple2<Customer,String> combined = getDefaultPaymentMethodId(
+							Pair<Customer,String> combined = getDefaultPaymentMethodId(
 								Customer.retrieve(
 									customerId,
 									// "sources" no longer included by default: https://stripe.com/docs/upgrades#2020-08-27
@@ -1597,8 +1597,8 @@ public class Stripe implements MerchantServicesProvider {
 									options
 								)
 							);
-							customer = combined.getElement1();
-							paymentMethodId = combined.getElement2();
+							customer = combined.getKey();
+							paymentMethodId = combined.getValue();
 						}
 						if(paymentMethodId == null) {
 							// Look for a default source for backward compatibility
@@ -1665,12 +1665,12 @@ public class Stripe implements MerchantServicesProvider {
 			final String providerAvsResult;
 			final AuthorizationResult.AvsResult avsResult;
 			{
-				Tuple2<String,AuthorizationResult.AvsResult> combined = getAvsResult(
+				Pair<String,AuthorizationResult.AvsResult> combined = getAvsResult(
 					cardChecks == null ? null : cardChecks.getAddressLine1Check(),
 					cardChecks == null ? null : cardChecks.getAddressPostalCodeCheck()
 				);
-				providerAvsResult = combined.getElement1();
-				avsResult = combined.getElement2();
+				providerAvsResult = combined.getLeft();
+				avsResult = combined.getRight();
 			}
 			// TODO: FraudDetails fraudDetails = charge.getFraudDetails();
 			// TODO: review reason
@@ -1992,7 +1992,7 @@ public class Stripe implements MerchantServicesProvider {
 			if(expirationYear == CreditCard.UNKNOWN_EXPRIATION_YEAR) expirationYear = null;
 			ConvertedError converted = convertError(creditCard.getMaskedCardNumber(), expirationMonth, expirationYear, e, null);
 			// TODO: Throw ErrorCodeException to provide more details
-			throw new LocalizedIOException(e, accessor, "MerchantServicesProvider.storeCreditCard.notSuccessful");
+			throw new LocalizedIOException(e, RESOURCES, "MerchantServicesProvider.storeCreditCard.notSuccessful");
 		}
 	}
 
@@ -2032,9 +2032,9 @@ public class Stripe implements MerchantServicesProvider {
 
 			String paymentMethodId;
 			{
-				Tuple2<Customer,String> combined = getDefaultPaymentMethodId(customer);
-				customer = combined.getElement1();
-				paymentMethodId = combined.getElement2();
+				Pair<Customer,String> combined = getDefaultPaymentMethodId(customer);
+				customer = combined.getKey();
+				paymentMethodId = combined.getValue();
 			}
 			String defaultSource = customer.getDefaultSource();
 			if(paymentMethodId != null) {
@@ -2075,7 +2075,7 @@ public class Stripe implements MerchantServicesProvider {
 			if(expirationYear == CreditCard.UNKNOWN_EXPRIATION_YEAR) expirationYear = null;
 			ConvertedError converted = convertError(creditCard.getMaskedCardNumber(), expirationMonth, expirationYear, e, null);
 			// TODO: Throw ErrorCodeException to provide more details
-			throw new LocalizedIOException(e, accessor, "MerchantServicesProvider.updateCreditCardNumberAndExpiration.notSuccessful");
+			throw new LocalizedIOException(e, RESOURCES, "MerchantServicesProvider.updateCreditCardNumberAndExpiration.notSuccessful");
 		}
 	}
 
@@ -2108,9 +2108,9 @@ public class Stripe implements MerchantServicesProvider {
 
 			String paymentMethodId;
 			{
-				Tuple2<Customer,String> combined = getDefaultPaymentMethodId(customer);
-				customer = combined.getElement1();
-				paymentMethodId = combined.getElement2();
+				Pair<Customer,String> combined = getDefaultPaymentMethodId(customer);
+				customer = combined.getKey();
+				paymentMethodId = combined.getValue();
 			}
 			String defaultSource = customer.getDefaultSource();
 
@@ -2162,7 +2162,7 @@ public class Stripe implements MerchantServicesProvider {
 		} catch(StripeException e) {
 			ConvertedError converted = convertError(CreditCard.maskCreditCardNumber(cardNumber), expirationMonth, expirationYear, e, null);
 			// TODO: Throw ErrorCodeException to provide more details
-			throw new LocalizedIOException(e, accessor, "MerchantServicesProvider.updateCreditCardNumberAndExpiration.notSuccessful");
+			throw new LocalizedIOException(e, RESOURCES, "MerchantServicesProvider.updateCreditCardNumberAndExpiration.notSuccessful");
 		}
 	}
 
@@ -2196,9 +2196,9 @@ public class Stripe implements MerchantServicesProvider {
 
 			String paymentMethodId;
 			{
-				Tuple2<Customer,String> combined = getDefaultPaymentMethodId(customer);
-				customer = combined.getElement1();
-				paymentMethodId = combined.getElement2();
+				Pair<Customer,String> combined = getDefaultPaymentMethodId(customer);
+				customer = combined.getKey();
+				paymentMethodId = combined.getValue();
 			}
 			String defaultSource = customer.getDefaultSource();
 
@@ -2238,7 +2238,7 @@ public class Stripe implements MerchantServicesProvider {
 		} catch(StripeException e) {
 			ConvertedError converted = convertError(creditCard.getMaskedCardNumber(), expirationMonth, expirationYear, e, null);
 			// TODO: Throw ErrorCodeException to provide more details
-			throw new LocalizedIOException(e, accessor, "MerchantServicesProvider.updateCreditCardExpiration.notSuccessful");
+			throw new LocalizedIOException(e, RESOURCES, "MerchantServicesProvider.updateCreditCardExpiration.notSuccessful");
 		}
 	}
 
@@ -2262,7 +2262,7 @@ public class Stripe implements MerchantServicesProvider {
 			if(expirationYear == CreditCard.UNKNOWN_EXPRIATION_YEAR) expirationYear = null;
 			ConvertedError converted = convertError(creditCard.getMaskedCardNumber(), expirationMonth, expirationYear, e, null);
 			// TODO: Throw ErrorCodeException to provide more details
-			throw new LocalizedIOException(e, accessor, "MerchantServicesProvider.deleteCreditCard.notSuccessful");
+			throw new LocalizedIOException(e, RESOURCES, "MerchantServicesProvider.deleteCreditCard.notSuccessful");
 		}
 	}
 
@@ -2308,7 +2308,7 @@ public class Stripe implements MerchantServicesProvider {
 					{
 						String paymentMethodId;
 						{
-							Tuple2<Customer,String> combined = getDefaultPaymentMethodId(
+							Pair<Customer,String> combined = getDefaultPaymentMethodId(
 								Customer.retrieve(
 									customerId,
 									// "sources" no longer included by default: https://stripe.com/docs/upgrades#2020-08-27
@@ -2316,8 +2316,8 @@ public class Stripe implements MerchantServicesProvider {
 									options
 								)
 							);
-							customer = combined.getElement1();
-							paymentMethodId = combined.getElement2();
+							customer = combined.getKey();
+							paymentMethodId = combined.getValue();
 						}
 						if(paymentMethodId != null) {
 							PaymentMethod defaultPaymentMethod = PaymentMethod.retrieve(paymentMethodId, options);
@@ -2402,7 +2402,7 @@ public class Stripe implements MerchantServicesProvider {
 		} catch(StripeException e) {
 			ConvertedError converted = convertError(null, null, null, e, warningOut);
 			// TODO: Throw ErrorCodeException to provide more details
-			throw new LocalizedIOException(e, accessor, "MerchantServicesProvider.getTokenizedCreditCards.notSuccessful");
+			throw new LocalizedIOException(e, RESOURCES, "MerchantServicesProvider.getTokenizedCreditCards.notSuccessful");
 		}
 	}
 }
