@@ -37,7 +37,7 @@ along with ao-credit-cards-stripe.  If not, see <http://www.gnu.org/licenses />.
 		shortTitle="Changelog"
 		tocLevels="1"
 		datePublished="2016-10-29T19:08:07-0500"
-		dateModified="2020-12-01T12:29:36-06:00"
+		dateModified="2020-12-07T13:45:10-06:00"
 	>
 		<c:if test="${fn:endsWith('@{project.version}', '-SNAPSHOT') and !fn:endsWith('@{project.version}', '-POST-SNAPSHOT')}">
 			<changelog:release
@@ -63,8 +63,14 @@ along with ao-credit-cards-stripe.  If not, see <http://www.gnu.org/licenses />.
 		>
 			<ul>
 				<li>
-					Upgraded to current version of <ao:a href="https://search.maven.org/artifact/com.stripe/stripe-java/20.30.0/jar">com.stripe:stripe-java:jar:20.30.0</ao:a>,
-					which uses <ao:a href="https://stripe.com/docs/upgrades#2020-08-27">Stripe API version 2020-08-27</ao:a>.
+					<p>
+						Upgraded to current version of <ao:a href="https://search.maven.org/artifact/com.stripe/stripe-java/20.30.0/jar">com.stripe:stripe-java:jar:20.30.0</ao:a>,
+						which uses <ao:a href="https://stripe.com/docs/upgrades#2020-08-27">Stripe API version 2020-08-27</ao:a>.
+					</p>
+					<p>
+						Stripe releases minor updates on a regular basis.  We will only note future updates when they
+						change the Stripe API version, otherwise they will just be part of "Updated dependencies".
+					</p>
 				</li>
 				<li>Updated dependencies.</li>
 				<li>Resolved editor warnings.</li>
