@@ -23,7 +23,6 @@
 package com.aoindustries.creditcards.stripe;
 
 import com.aoindustries.collections.AoCollections;
-import static com.aoindustries.creditcards.Resources.RESOURCES;
 import com.aoindustries.creditcards.AuthorizationResult;
 import com.aoindustries.creditcards.CaptureResult;
 import com.aoindustries.creditcards.CreditCard;
@@ -32,6 +31,7 @@ import static com.aoindustries.creditcards.CreditCard.UNKNOWN_DIGIT;
 import static com.aoindustries.creditcards.CreditCard.UNKNOWN_MIDDLE;
 import com.aoindustries.creditcards.CreditResult;
 import com.aoindustries.creditcards.MerchantServicesProvider;
+import static com.aoindustries.creditcards.Resources.PACKAGE_RESOURCES;
 import com.aoindustries.creditcards.SaleResult;
 import com.aoindustries.creditcards.TokenizedCreditCard;
 import com.aoindustries.creditcards.Transaction;
@@ -1992,7 +1992,7 @@ public class Stripe implements MerchantServicesProvider {
 			if(expirationYear == CreditCard.UNKNOWN_EXPRIATION_YEAR) expirationYear = null;
 			ConvertedError converted = convertError(creditCard.getMaskedCardNumber(), expirationMonth, expirationYear, e, null);
 			// TODO: Throw ErrorCodeException to provide more details
-			throw new LocalizedIOException(e, RESOURCES, "MerchantServicesProvider.storeCreditCard.notSuccessful");
+			throw new LocalizedIOException(e, PACKAGE_RESOURCES, "MerchantServicesProvider.storeCreditCard.notSuccessful");
 		}
 	}
 
@@ -2075,7 +2075,7 @@ public class Stripe implements MerchantServicesProvider {
 			if(expirationYear == CreditCard.UNKNOWN_EXPRIATION_YEAR) expirationYear = null;
 			ConvertedError converted = convertError(creditCard.getMaskedCardNumber(), expirationMonth, expirationYear, e, null);
 			// TODO: Throw ErrorCodeException to provide more details
-			throw new LocalizedIOException(e, RESOURCES, "MerchantServicesProvider.updateCreditCardNumberAndExpiration.notSuccessful");
+			throw new LocalizedIOException(e, PACKAGE_RESOURCES, "MerchantServicesProvider.updateCreditCardNumberAndExpiration.notSuccessful");
 		}
 	}
 
@@ -2162,7 +2162,7 @@ public class Stripe implements MerchantServicesProvider {
 		} catch(StripeException e) {
 			ConvertedError converted = convertError(CreditCard.maskCreditCardNumber(cardNumber), expirationMonth, expirationYear, e, null);
 			// TODO: Throw ErrorCodeException to provide more details
-			throw new LocalizedIOException(e, RESOURCES, "MerchantServicesProvider.updateCreditCardNumberAndExpiration.notSuccessful");
+			throw new LocalizedIOException(e, PACKAGE_RESOURCES, "MerchantServicesProvider.updateCreditCardNumberAndExpiration.notSuccessful");
 		}
 	}
 
@@ -2238,7 +2238,7 @@ public class Stripe implements MerchantServicesProvider {
 		} catch(StripeException e) {
 			ConvertedError converted = convertError(creditCard.getMaskedCardNumber(), expirationMonth, expirationYear, e, null);
 			// TODO: Throw ErrorCodeException to provide more details
-			throw new LocalizedIOException(e, RESOURCES, "MerchantServicesProvider.updateCreditCardExpiration.notSuccessful");
+			throw new LocalizedIOException(e, PACKAGE_RESOURCES, "MerchantServicesProvider.updateCreditCardExpiration.notSuccessful");
 		}
 	}
 
@@ -2262,7 +2262,7 @@ public class Stripe implements MerchantServicesProvider {
 			if(expirationYear == CreditCard.UNKNOWN_EXPRIATION_YEAR) expirationYear = null;
 			ConvertedError converted = convertError(creditCard.getMaskedCardNumber(), expirationMonth, expirationYear, e, null);
 			// TODO: Throw ErrorCodeException to provide more details
-			throw new LocalizedIOException(e, RESOURCES, "MerchantServicesProvider.deleteCreditCard.notSuccessful");
+			throw new LocalizedIOException(e, PACKAGE_RESOURCES, "MerchantServicesProvider.deleteCreditCard.notSuccessful");
 		}
 	}
 
@@ -2402,7 +2402,7 @@ public class Stripe implements MerchantServicesProvider {
 		} catch(StripeException e) {
 			ConvertedError converted = convertError(null, null, null, e, warningOut);
 			// TODO: Throw ErrorCodeException to provide more details
-			throw new LocalizedIOException(e, RESOURCES, "MerchantServicesProvider.getTokenizedCreditCards.notSuccessful");
+			throw new LocalizedIOException(e, PACKAGE_RESOURCES, "MerchantServicesProvider.getTokenizedCreditCards.notSuccessful");
 		}
 	}
 }
