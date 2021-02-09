@@ -1,6 +1,6 @@
 /*
  * ao-credit-cards-stripe - Provider for Stripe.
- * Copyright (C) 2015, 2016, 2019, 2020  AO Industries, Inc.
+ * Copyright (C) 2015, 2016, 2019, 2020, 2021  AO Industries, Inc.
  *     support@aoindustries.com
  *     7262 Bull Pen Cir
  *     Mobile, AL 36695
@@ -616,8 +616,8 @@ public class Stripe implements MerchantServicesProvider {
 		PaymentMethodCreateParams.CardDetails cardParams;
 		{
 			PaymentMethodCreateParams.CardDetails.Builder builder = PaymentMethodCreateParams.CardDetails.builder();
-			builder.setExpMonth(expirationMonth == CreditCard.UNKNOWN_EXPRIATION_MONTH ? null : (long)expirationMonth);
-			builder.setExpYear(expirationYear == CreditCard.UNKNOWN_EXPRIATION_YEAR ? null : (long)expirationYear);
+			builder.setExpMonth(expirationMonth == CreditCard.UNKNOWN_EXPIRATION_MONTH ? null : (long)expirationMonth);
+			builder.setExpYear(expirationYear == CreditCard.UNKNOWN_EXPIRATION_YEAR ? null : (long)expirationYear);
 			addParam(false, builder::setNumber, CreditCard.numbersOnly(cardNumber));
 			addParam(false, builder::setCvc, cardCode);
 			cardParams = builder.build();
@@ -1549,9 +1549,9 @@ public class Stripe implements MerchantServicesProvider {
 	 */
 	private AuthorizationResult saleOrAuthorize(TransactionRequest transactionRequest, CreditCard creditCard, boolean capture) {
 		Byte expirationMonth = creditCard.getExpirationMonth(); // TODO: 2.0: Nullable Byte
-		if(expirationMonth == CreditCard.UNKNOWN_EXPRIATION_MONTH) expirationMonth = null;
+		if(expirationMonth == CreditCard.UNKNOWN_EXPIRATION_MONTH) expirationMonth = null;
 		Short expirationYear = creditCard.getExpirationYear(); // TODO: 2.0: Nullable Short
-		if(expirationYear == CreditCard.UNKNOWN_EXPRIATION_YEAR) expirationYear = null;
+		if(expirationYear == CreditCard.UNKNOWN_EXPIRATION_YEAR) expirationYear = null;
 		// Test mode not currently supported
 		if(transactionRequest.getTestMode()) {
 			throw new UnsupportedOperationException("Test mode not currently supported");
@@ -1987,9 +1987,9 @@ public class Stripe implements MerchantServicesProvider {
 			return customer.getId();
 		} catch(StripeException e) {
 			Byte expirationMonth = creditCard.getExpirationMonth(); // TODO: 2.0: Nullable Byte
-			if(expirationMonth == CreditCard.UNKNOWN_EXPRIATION_MONTH) expirationMonth = null;
+			if(expirationMonth == CreditCard.UNKNOWN_EXPIRATION_MONTH) expirationMonth = null;
 			Short expirationYear = creditCard.getExpirationYear(); // TODO: 2.0: Nullable Short
-			if(expirationYear == CreditCard.UNKNOWN_EXPRIATION_YEAR) expirationYear = null;
+			if(expirationYear == CreditCard.UNKNOWN_EXPIRATION_YEAR) expirationYear = null;
 			ConvertedError converted = convertError(creditCard.getMaskedCardNumber(), expirationMonth, expirationYear, e, null);
 			// TODO: Throw ErrorCodeException to provide more details
 			throw new LocalizedIOException(e, PACKAGE_RESOURCES, "MerchantServicesProvider.storeCreditCard.notSuccessful");
@@ -2070,9 +2070,9 @@ public class Stripe implements MerchantServicesProvider {
 			}
 		} catch(StripeException e) {
 			Byte expirationMonth = creditCard.getExpirationMonth(); // TODO: 2.0: Nullable Byte
-			if(expirationMonth == CreditCard.UNKNOWN_EXPRIATION_MONTH) expirationMonth = null;
+			if(expirationMonth == CreditCard.UNKNOWN_EXPIRATION_MONTH) expirationMonth = null;
 			Short expirationYear = creditCard.getExpirationYear(); // TODO: 2.0: Nullable Short
-			if(expirationYear == CreditCard.UNKNOWN_EXPRIATION_YEAR) expirationYear = null;
+			if(expirationYear == CreditCard.UNKNOWN_EXPIRATION_YEAR) expirationYear = null;
 			ConvertedError converted = convertError(creditCard.getMaskedCardNumber(), expirationMonth, expirationYear, e, null);
 			// TODO: Throw ErrorCodeException to provide more details
 			throw new LocalizedIOException(e, PACKAGE_RESOURCES, "MerchantServicesProvider.updateCreditCardNumberAndExpiration.notSuccessful");
@@ -2229,8 +2229,8 @@ public class Stripe implements MerchantServicesProvider {
 				// Update the default Card
 				defaultCard.update(
 					CardUpdateOnCustomerParams.builder()
-						.setExpMonth(expirationMonth == CreditCard.UNKNOWN_EXPRIATION_MONTH ? null : zeroPad(expirationMonth))
-						.setExpYear(expirationYear == CreditCard.UNKNOWN_EXPRIATION_YEAR ? null : Short.toString(expirationYear))
+						.setExpMonth(expirationMonth == CreditCard.UNKNOWN_EXPIRATION_MONTH ? null : zeroPad(expirationMonth))
+						.setExpYear(expirationYear == CreditCard.UNKNOWN_EXPIRATION_YEAR ? null : Short.toString(expirationYear))
 						.build(),
 					options
 				);
@@ -2257,9 +2257,9 @@ public class Stripe implements MerchantServicesProvider {
 			}
 		} catch(StripeException e) {
 			Byte expirationMonth = creditCard.getExpirationMonth(); // TODO: 2.0: Nullable Byte
-			if(expirationMonth == CreditCard.UNKNOWN_EXPRIATION_MONTH) expirationMonth = null;
+			if(expirationMonth == CreditCard.UNKNOWN_EXPIRATION_MONTH) expirationMonth = null;
 			Short expirationYear = creditCard.getExpirationYear(); // TODO: 2.0: Nullable Short
-			if(expirationYear == CreditCard.UNKNOWN_EXPRIATION_YEAR) expirationYear = null;
+			if(expirationYear == CreditCard.UNKNOWN_EXPIRATION_YEAR) expirationYear = null;
 			ConvertedError converted = convertError(creditCard.getMaskedCardNumber(), expirationMonth, expirationYear, e, null);
 			// TODO: Throw ErrorCodeException to provide more details
 			throw new LocalizedIOException(e, PACKAGE_RESOURCES, "MerchantServicesProvider.deleteCreditCard.notSuccessful");
@@ -2359,9 +2359,9 @@ public class Stripe implements MerchantServicesProvider {
 						Short expirationYear;
 						if(persistedCard != null) {
 							expirationMonth = persistedCard.getExpirationMonth(); // TODO: 2.0: Make nullable Byte
-							if(expirationMonth == CreditCard.UNKNOWN_EXPRIATION_MONTH) expirationMonth = null;
+							if(expirationMonth == CreditCard.UNKNOWN_EXPIRATION_MONTH) expirationMonth = null;
 							expirationYear = persistedCard.getExpirationYear(); // TODO: 2.0: Make nullable Short
-							if(expirationYear == CreditCard.UNKNOWN_EXPRIATION_YEAR) expirationYear = null;
+							if(expirationYear == CreditCard.UNKNOWN_EXPIRATION_YEAR) expirationYear = null;
 						} else {
 							expirationMonth = null;
 							expirationYear = null;
