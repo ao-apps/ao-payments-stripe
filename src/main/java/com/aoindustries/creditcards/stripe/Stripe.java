@@ -193,7 +193,7 @@ public class Stripe implements MerchantServicesProvider {
 	 *
 	 * @param update  The parameter will always be added, even if null, to update an existing object
 	 */
-	private static void addParam(boolean update, Map<String,Object> params, String name, String value) {
+	private static void addParam(boolean update, Map<String, Object> params, String name, String value) {
 		if(value != null) {
 			value = value.trim();
 			if(!value.isEmpty()) {
@@ -209,7 +209,7 @@ public class Stripe implements MerchantServicesProvider {
 	 *
 	 * @param update  The parameter will always be added, even if null, to update an existing object
 	 */
-	private static void addParam(boolean update, Map<String,Object> params, String name, Object value) {
+	private static void addParam(boolean update, Map<String, Object> params, String name, Object value) {
 		if(value != null) {
 			params.put(name, value);
 			return;
@@ -222,7 +222,7 @@ public class Stripe implements MerchantServicesProvider {
 	 *
 	 * @param update  The parameter will always be added, even if null, to update an existing object
 	 */
-	private static void addParam(boolean update, Map<String,Object> params, String name, Map<?,?> map) {
+	private static void addParam(boolean update, Map<String, Object> params, String name, Map<?, ?> map) {
 		if(map != null && !map.isEmpty()) {
 			params.put(name, map);
 			return;
@@ -286,7 +286,7 @@ public class Stripe implements MerchantServicesProvider {
 	 *          {@code false otherwise}.
 	 */
 	@SuppressWarnings("overloads")
-	private static <K,V> boolean addParam(boolean update, Consumer<Map<K,V>> params, Map<K,V> map) {
+	private static <K, V> boolean addParam(boolean update, Consumer<Map<K, V>> params, Map<K, V> map) {
 		if(map != null && !map.isEmpty()) {
 			params.accept(map);
 			return true;
@@ -308,7 +308,7 @@ public class Stripe implements MerchantServicesProvider {
 	 *
 	 * @see  #addMetaData(boolean, java.util.Map, java.lang.String, java.lang.Object, boolean)
 	 */
-	private static void addMetaData(boolean update, Map<String,String> metadata, String key, String value, boolean allowTruncate) {
+	private static void addMetaData(boolean update, Map<String, String> metadata, String key, String value, boolean allowTruncate) {
 		if(key.length() > MAX_METADATA_KEY_LENGTH) throw new IllegalArgumentException("Meta data key too long: " + key);
 		if(value != null) {
 			value = value.trim();
@@ -334,7 +334,7 @@ public class Stripe implements MerchantServicesProvider {
 	 *
 	 * @see  #addMetaData(boolean, java.util.Map, java.lang.String, java.lang.String, boolean)
 	 */
-	private static void addMetaData(boolean update, Map<String,String> metadata, String key, Object value, boolean allowTrimValue) {
+	private static void addMetaData(boolean update, Map<String, String> metadata, String key, Object value, boolean allowTrimValue) {
 		addMetaData(
 			update,
 			metadata,
@@ -355,8 +355,8 @@ public class Stripe implements MerchantServicesProvider {
 	 *
 	 * @param update  The parameters will always be added, even if null, to update an existing object
 	 */
-	private static Map<String,String> makeCustomerMetadata(CreditCard creditCard, boolean update) {
-		Map<String,String> metadata = new LinkedHashMap<>();
+	private static Map<String, String> makeCustomerMetadata(CreditCard creditCard, boolean update) {
+		Map<String, String> metadata = new LinkedHashMap<>();
 		addMetaData(update, metadata, "company_name", creditCard.getCompanyName(), true);
 		addMetaData(update, metadata, "phone", null, true); // Moved to customer
 		addMetaData(update, metadata, "fax", creditCard.getFax(), true);
@@ -379,8 +379,8 @@ public class Stripe implements MerchantServicesProvider {
 	 * TODO: Review: <a href="https://stripe.com/docs/api/metadata?lang=java">Metadata</a>: "Do not store any sensitive information"
 	 * </p>
 	 */
-	private static Map<String,String> makePaymentIntentMetadata(TransactionRequest transactionRequest, CreditCard creditCard, boolean update) {
-		Map<String,String> metadata = makeCustomerMetadata(creditCard, update);
+	private static Map<String, String> makePaymentIntentMetadata(TransactionRequest transactionRequest, CreditCard creditCard, boolean update) {
+		Map<String, String> metadata = makeCustomerMetadata(creditCard, update);
 		// Additional customer meta data
 		addMetaData(update, metadata, "customer_description", creditCard.getComments(), true);
 		addMetaData(update, metadata, "customer_email", creditCard.getEmail(), false); // TODO: Email is other places, worth having here?
@@ -462,7 +462,7 @@ public class Stripe implements MerchantServicesProvider {
 	private static void addCustomerParams(
 		CreditCard creditCard,
 		boolean update,
-		Map<String,Object> customerParams
+		Map<String, Object> customerParams
 	) {
 		if(update && !UPDATE_WITH_MAP_API) throw new AssertionError();
 		// Unused: account_balance
@@ -518,7 +518,7 @@ public class Stripe implements MerchantServicesProvider {
 	private static void addCardParams(
 		CreditCard creditCard,
 		boolean update,
-		Map<String,Object> cardParams
+		Map<String, Object> cardParams
 	) {
 		if(update && !UPDATE_WITH_MAP_API) throw new AssertionError();
 		// object: set to "card" other places as-needed
@@ -1375,7 +1375,7 @@ public class Stripe implements MerchantServicesProvider {
 		}
 	}
 
-	private static Pair<String,AuthorizationResult.AvsResult> getAvsResult(String addressResult, String zipResult) {
+	private static Pair<String, AuthorizationResult.AvsResult> getAvsResult(String addressResult, String zipResult) {
 		final String providerAvsResult;
 		final AuthorizationResult.AvsResult avsResult;
 		if(addressResult != null) {
@@ -1475,7 +1475,7 @@ public class Stripe implements MerchantServicesProvider {
 	 * <li>See <a href="https://stripe.com/docs/api/customers/update?lang=java">Update a customer</a>.</li>
 	 * </ol>
 	 */
-	private Pair<Customer,String> getDefaultPaymentMethodId(Customer customer) throws StripeException {
+	private Pair<Customer, String> getDefaultPaymentMethodId(Customer customer) throws StripeException {
 		String paymentMethodId = customer.getInvoiceSettings().getDefaultPaymentMethod();
 		String defaultSource = customer.getDefaultSource();
 		// Ignore when is a default source, which should be updated through the legacy card API
@@ -1589,7 +1589,7 @@ public class Stripe implements MerchantServicesProvider {
 						// Is a stored card
 						Customer customer;
 						{
-							Pair<Customer,String> combined = getDefaultPaymentMethodId(
+							Pair<Customer, String> combined = getDefaultPaymentMethodId(
 								Customer.retrieve(
 									customerId,
 									// "sources" no longer included by default: https://stripe.com/docs/upgrades#2020-08-27
@@ -1665,7 +1665,7 @@ public class Stripe implements MerchantServicesProvider {
 			final String providerAvsResult;
 			final AuthorizationResult.AvsResult avsResult;
 			{
-				Pair<String,AuthorizationResult.AvsResult> combined = getAvsResult(
+				Pair<String, AuthorizationResult.AvsResult> combined = getAvsResult(
 					cardChecks == null ? null : cardChecks.getAddressLine1Check(),
 					cardChecks == null ? null : cardChecks.getAddressPostalCodeCheck()
 				);
@@ -2017,7 +2017,7 @@ public class Stripe implements MerchantServicesProvider {
 			);
 			// Update the Customer
 			if(UPDATE_WITH_MAP_API) {
-				Map<String,Object> customerParams = new HashMap<>();
+				Map<String, Object> customerParams = new HashMap<>();
 				addCustomerParams(creditCard, true, customerParams);
 				// "sources" no longer included by default: https://stripe.com/docs/upgrades#2020-08-27
 				customerParams.put("expand", Collections.singletonList("sources"));
@@ -2032,7 +2032,7 @@ public class Stripe implements MerchantServicesProvider {
 
 			String paymentMethodId;
 			{
-				Pair<Customer,String> combined = getDefaultPaymentMethodId(customer);
+				Pair<Customer, String> combined = getDefaultPaymentMethodId(customer);
 				customer = combined.getKey();
 				paymentMethodId = combined.getValue();
 			}
@@ -2059,7 +2059,7 @@ public class Stripe implements MerchantServicesProvider {
 				Card defaultCard = (Card)customer.getSources().retrieve(defaultSource, options);
 				// Update the default Card
 				if(UPDATE_WITH_MAP_API) {
-					Map<String,Object> cardParams = new HashMap<>();
+					Map<String, Object> cardParams = new HashMap<>();
 					addCardParams(creditCard, true, cardParams);
 					defaultCard.update(cardParams, options);
 				} else {
@@ -2108,7 +2108,7 @@ public class Stripe implements MerchantServicesProvider {
 
 			String paymentMethodId;
 			{
-				Pair<Customer,String> combined = getDefaultPaymentMethodId(customer);
+				Pair<Customer, String> combined = getDefaultPaymentMethodId(customer);
 				customer = combined.getKey();
 				paymentMethodId = combined.getValue();
 			}
@@ -2196,7 +2196,7 @@ public class Stripe implements MerchantServicesProvider {
 
 			String paymentMethodId;
 			{
-				Pair<Customer,String> combined = getDefaultPaymentMethodId(customer);
+				Pair<Customer, String> combined = getDefaultPaymentMethodId(customer);
 				customer = combined.getKey();
 				paymentMethodId = combined.getValue();
 			}
@@ -2279,7 +2279,7 @@ public class Stripe implements MerchantServicesProvider {
 	 */
 	@Override
 	@SuppressWarnings("AssignmentToForLoopParameter")
-	public Map<String, TokenizedCreditCard> getTokenizedCreditCards(Map<String,CreditCard> persistedCards, PrintWriter verboseOut, PrintWriter infoOut, PrintWriter warningOut) throws IOException {
+	public Map<String, TokenizedCreditCard> getTokenizedCreditCards(Map<String, CreditCard> persistedCards, PrintWriter verboseOut, PrintWriter infoOut, PrintWriter warningOut) throws IOException {
 		try {
 			Map<String, TokenizedCreditCard> map = AoCollections.newLinkedHashMap(persistedCards.size());
 			String startingAfter = null;
@@ -2308,7 +2308,7 @@ public class Stripe implements MerchantServicesProvider {
 					{
 						String paymentMethodId;
 						{
-							Pair<Customer,String> combined = getDefaultPaymentMethodId(
+							Pair<Customer, String> combined = getDefaultPaymentMethodId(
 								Customer.retrieve(
 									customerId,
 									// "sources" no longer included by default: https://stripe.com/docs/upgrades#2020-08-27
