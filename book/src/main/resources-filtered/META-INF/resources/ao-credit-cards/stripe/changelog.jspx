@@ -37,7 +37,7 @@ along with ao-credit-cards-stripe.  If not, see <http://www.gnu.org/licenses />.
 		shortTitle="Changelog"
 		tocLevels="1"
 		datePublished="2016-10-29T19:08:07-0500"
-		dateModified="2021-02-09T09:38:17-06:00"
+		dateModified="2021-05-13T21:21:00-05:00"
 	>
 		<c:if test="${fn:endsWith('@{project.version}', '-SNAPSHOT') and !fn:endsWith('@{project.version}', '-POST-SNAPSHOT')}">
 			<changelog:release
@@ -153,7 +153,7 @@ along with ao-credit-cards-stripe.  If not, see <http://www.gnu.org/licenses />.
 				<li>
 					The API no longer prefixes <code>AO#</code> to statement descriptors when the order number contains any alphabetic characters.  Instead,
 					please set any desired prefix in
-					<ao:a href="https://dashboard.stripe.com/account">Account settings -&gt; Public business information -&gt; Shortened descriptor</ao:a>.
+					<ao:a href="https://dashboard.stripe.com/account">Account settings → Public business information → Shortened descriptor</ao:a>.
 				</li>
 				<li>Moved "phone" from customer meta data to customer.</li>
 				<li>Now adding "name" on customer in addition to the card.</li>
