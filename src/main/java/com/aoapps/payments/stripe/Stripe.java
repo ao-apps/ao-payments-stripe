@@ -20,26 +20,26 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with ao-payments-stripe.  If not, see <http://www.gnu.org/licenses/>.
  */
-package com.aoindustries.creditcards.stripe;
+package com.aoapps.payments.stripe;
 
-import com.aoindustries.collections.AoCollections;
-import com.aoindustries.creditcards.AuthorizationResult;
-import com.aoindustries.creditcards.CaptureResult;
-import com.aoindustries.creditcards.CreditCard;
-import static com.aoindustries.creditcards.CreditCard.MASK_CHARACTER;
-import static com.aoindustries.creditcards.CreditCard.UNKNOWN_DIGIT;
-import static com.aoindustries.creditcards.CreditCard.UNKNOWN_MIDDLE;
-import com.aoindustries.creditcards.CreditResult;
-import com.aoindustries.creditcards.MerchantServicesProvider;
-import static com.aoindustries.creditcards.Resources.PACKAGE_RESOURCES;
-import com.aoindustries.creditcards.SaleResult;
-import com.aoindustries.creditcards.TokenizedCreditCard;
-import com.aoindustries.creditcards.Transaction;
-import com.aoindustries.creditcards.TransactionRequest;
-import com.aoindustries.creditcards.TransactionResult;
-import com.aoindustries.creditcards.VoidResult;
-import com.aoindustries.io.LocalizedIOException;
-import com.aoindustries.math.SafeMath;
+import com.aoapps.collections.AoCollections;
+import com.aoapps.lang.io.LocalizedIOException;
+import com.aoapps.lang.math.SafeMath;
+import com.aoapps.payments.AuthorizationResult;
+import com.aoapps.payments.CaptureResult;
+import com.aoapps.payments.CreditCard;
+import static com.aoapps.payments.CreditCard.MASK_CHARACTER;
+import static com.aoapps.payments.CreditCard.UNKNOWN_DIGIT;
+import static com.aoapps.payments.CreditCard.UNKNOWN_MIDDLE;
+import com.aoapps.payments.CreditResult;
+import com.aoapps.payments.MerchantServicesProvider;
+import static com.aoapps.payments.Resources.PACKAGE_RESOURCES;
+import com.aoapps.payments.SaleResult;
+import com.aoapps.payments.TokenizedCreditCard;
+import com.aoapps.payments.Transaction;
+import com.aoapps.payments.TransactionRequest;
+import com.aoapps.payments.TransactionResult;
+import com.aoapps.payments.VoidResult;
 import com.stripe.exception.ApiConnectionException;
 import com.stripe.exception.ApiException;
 import com.stripe.exception.AuthenticationException;
@@ -634,7 +634,7 @@ public class Stripe implements MerchantServicesProvider {
 	}
 
 	/**
-	 * @see  #makePaymentMethodParams(com.aoindustries.creditcards.CreditCard, java.lang.String, byte, short, java.lang.String)
+	 * @see  #makePaymentMethodParams(com.aoapps.payments.CreditCard, java.lang.String, byte, short, java.lang.String)
 	 */
 	private static PaymentMethodCreateParams makePaymentMethodParams(CreditCard creditCard) {
 		return makePaymentMethodParams(
