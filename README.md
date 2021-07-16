@@ -9,6 +9,12 @@
 
 [![Build](https://github.com/aoindustries/ao-payments-stripe/workflows/Build/badge.svg?branch=master)](https://github.com/aoindustries/ao-payments-stripe/actions?query=workflow%3ABuild)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.aoapps/ao-payments-stripe/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.aoapps/ao-payments-stripe)
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?branch=master&project=com.aoapps%3Aao-payments-stripe&metric=alert_status)](https://sonarcloud.io/dashboard?branch=master&id=com.aoapps%3Aao-payments-stripe)
+[![Lines of Code](https://sonarcloud.io/api/project_badges/measure?branch=master&project=com.aoapps%3Aao-payments-stripe&metric=ncloc)](https://sonarcloud.io/component_measures?branch=master&id=com.aoapps%3Aao-payments-stripe&metric=ncloc)  
+[![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?branch=master&project=com.aoapps%3Aao-payments-stripe&metric=reliability_rating)](https://sonarcloud.io/component_measures?branch=master&id=com.aoapps%3Aao-payments-stripe&metric=Reliability)
+[![Security Rating](https://sonarcloud.io/api/project_badges/measure?branch=master&project=com.aoapps%3Aao-payments-stripe&metric=security_rating)](https://sonarcloud.io/component_measures?branch=master&id=com.aoapps%3Aao-payments-stripe&metric=Security)
+[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?branch=master&project=com.aoapps%3Aao-payments-stripe&metric=sqale_rating)](https://sonarcloud.io/component_measures?branch=master&id=com.aoapps%3Aao-payments-stripe&metric=Maintainability)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?branch=master&project=com.aoapps%3Aao-payments-stripe&metric=coverage)](https://sonarcloud.io/component_measures?branch=master&id=com.aoapps%3Aao-payments-stripe&metric=Coverage)
 
 Provider for [Stripe](https://stripe.com/).
 
