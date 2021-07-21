@@ -609,8 +609,8 @@ public class Stripe implements MerchantServicesProvider {
 	private static PaymentMethodCreateParams makePaymentMethodParams(
 		CreditCard creditCard,
 		String cardNumber,
-		byte expirationMonth, // TODO: 2.0: Make nullable Byte
-		short expirationYear, // TODO: 2.0: Make nullable Short
+		byte expirationMonth, // TODO: 3.0: Make nullable Byte
+		short expirationYear, // TODO: 3.0: Make nullable Short
 		String cardCode
 	) {
 		PaymentMethodCreateParams.CardDetails cardParams;
@@ -1548,9 +1548,9 @@ public class Stripe implements MerchantServicesProvider {
 	 * </ol>
 	 */
 	private AuthorizationResult saleOrAuthorize(TransactionRequest transactionRequest, CreditCard creditCard, boolean capture) {
-		Byte expirationMonth = creditCard.getExpirationMonth(); // TODO: 2.0: Nullable Byte
+		Byte expirationMonth = creditCard.getExpirationMonth(); // TODO: 3.0: Nullable Byte
 		if(expirationMonth == CreditCard.UNKNOWN_EXPIRATION_MONTH) expirationMonth = null;
-		Short expirationYear = creditCard.getExpirationYear(); // TODO: 2.0: Nullable Short
+		Short expirationYear = creditCard.getExpirationYear(); // TODO: 3.0: Nullable Short
 		if(expirationYear == CreditCard.UNKNOWN_EXPIRATION_YEAR) expirationYear = null;
 		// Test mode not currently supported
 		if(transactionRequest.getTestMode()) {
@@ -1708,7 +1708,7 @@ public class Stripe implements MerchantServicesProvider {
 
 			// https://stripe.com/docs/payments/payment-intents/usage?lang=java#paymentintent-status-overview
 			String status = paymentIntent.getStatus();
-			
+
 			if(
 				// Must be "succeeded" when capturing or "requires_capture" for auth-only
 				(capture ? "succeeded" : "requires_capture").equals(status)
@@ -1986,9 +1986,9 @@ public class Stripe implements MerchantServicesProvider {
 			// Return the Id of the new customer
 			return customer.getId();
 		} catch(StripeException e) {
-			Byte expirationMonth = creditCard.getExpirationMonth(); // TODO: 2.0: Nullable Byte
+			Byte expirationMonth = creditCard.getExpirationMonth(); // TODO: 3.0: Nullable Byte
 			if(expirationMonth == CreditCard.UNKNOWN_EXPIRATION_MONTH) expirationMonth = null;
-			Short expirationYear = creditCard.getExpirationYear(); // TODO: 2.0: Nullable Short
+			Short expirationYear = creditCard.getExpirationYear(); // TODO: 3.0: Nullable Short
 			if(expirationYear == CreditCard.UNKNOWN_EXPIRATION_YEAR) expirationYear = null;
 			ConvertedError converted = convertError(creditCard.getMaskedCardNumber(), expirationMonth, expirationYear, e, null);
 			// TODO: Throw ErrorCodeException to provide more details
@@ -2069,9 +2069,9 @@ public class Stripe implements MerchantServicesProvider {
 				}
 			}
 		} catch(StripeException e) {
-			Byte expirationMonth = creditCard.getExpirationMonth(); // TODO: 2.0: Nullable Byte
+			Byte expirationMonth = creditCard.getExpirationMonth(); // TODO: 3.0: Nullable Byte
 			if(expirationMonth == CreditCard.UNKNOWN_EXPIRATION_MONTH) expirationMonth = null;
-			Short expirationYear = creditCard.getExpirationYear(); // TODO: 2.0: Nullable Short
+			Short expirationYear = creditCard.getExpirationYear(); // TODO: 3.0: Nullable Short
 			if(expirationYear == CreditCard.UNKNOWN_EXPIRATION_YEAR) expirationYear = null;
 			ConvertedError converted = convertError(creditCard.getMaskedCardNumber(), expirationMonth, expirationYear, e, null);
 			// TODO: Throw ErrorCodeException to provide more details
@@ -2256,9 +2256,9 @@ public class Stripe implements MerchantServicesProvider {
 				customer.delete(options);
 			}
 		} catch(StripeException e) {
-			Byte expirationMonth = creditCard.getExpirationMonth(); // TODO: 2.0: Nullable Byte
+			Byte expirationMonth = creditCard.getExpirationMonth(); // TODO: 3.0: Nullable Byte
 			if(expirationMonth == CreditCard.UNKNOWN_EXPIRATION_MONTH) expirationMonth = null;
-			Short expirationYear = creditCard.getExpirationYear(); // TODO: 2.0: Nullable Short
+			Short expirationYear = creditCard.getExpirationYear(); // TODO: 3.0: Nullable Short
 			if(expirationYear == CreditCard.UNKNOWN_EXPIRATION_YEAR) expirationYear = null;
 			ConvertedError converted = convertError(creditCard.getMaskedCardNumber(), expirationMonth, expirationYear, e, null);
 			// TODO: Throw ErrorCodeException to provide more details
@@ -2358,9 +2358,9 @@ public class Stripe implements MerchantServicesProvider {
 						Byte expirationMonth;
 						Short expirationYear;
 						if(persistedCard != null) {
-							expirationMonth = persistedCard.getExpirationMonth(); // TODO: 2.0: Make nullable Byte
+							expirationMonth = persistedCard.getExpirationMonth(); // TODO: 3.0: Make nullable Byte
 							if(expirationMonth == CreditCard.UNKNOWN_EXPIRATION_MONTH) expirationMonth = null;
-							expirationYear = persistedCard.getExpirationYear(); // TODO: 2.0: Make nullable Short
+							expirationYear = persistedCard.getExpirationYear(); // TODO: 3.0: Make nullable Short
 							if(expirationYear == CreditCard.UNKNOWN_EXPIRATION_YEAR) expirationYear = null;
 						} else {
 							expirationMonth = null;
