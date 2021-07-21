@@ -2290,7 +2290,7 @@ public class Stripe implements MerchantServicesProvider {
 						.setLimit(100L)
 						.setStartingAfter(startingAfter)
 						// "sources" no longer included by default: https://stripe.com/docs/upgrades#2020-08-27
-						.addExpand("sources")
+						.addExpand("data.sources")
 						.build(),
 					options
 				).getData()).isEmpty()

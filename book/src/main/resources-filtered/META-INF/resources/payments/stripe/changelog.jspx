@@ -37,7 +37,7 @@ along with ao-payments-stripe.  If not, see <http://www.gnu.org/licenses />.
 		shortTitle="Changelog"
 		tocLevels="1"
 		datePublished="2016-10-29T19:08:07-05:00"
-		dateModified="2021-06-27T16:13:41-05:00"
+		dateModified="2021-07-21T06:22:14-05:00"
 	>
 		<c:if test="${fn:endsWith('@{project.version}', '-SNAPSHOT') and !fn:endsWith('@{project.version}', '-POST-SNAPSHOT')}">
 			<changelog:release
@@ -58,6 +58,10 @@ along with ao-payments-stripe.  If not, see <http://www.gnu.org/licenses />.
 					</li>
 					<li>Maven artifact relocated from <code>com.aoindustries:ao-credit-cards-stripe</code> to <code>com.aoapps:ao-payments-stripe</code>.</li>
 					<li>Package renamed from <code>com.aoindustries.creditcards.stripe</code> to <code>com.aoapps.payments.stripe</code>.</li>
+					<li>
+						Fixed bug <code>This property cannot be expanded (sources). You may want to try expanding 'data.sources' instead.</code>
+						since upgrade to <ao:a href="https://stripe.com/docs/upgrades#2020-08-27">Stripe API 2020-08-27</ao:a>.
+					</li>
 				</ul>
 			</changelog:release>
 		</c:if>
