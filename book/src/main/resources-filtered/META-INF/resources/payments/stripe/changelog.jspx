@@ -37,7 +37,7 @@ along with ao-payments-stripe.  If not, see <http://www.gnu.org/licenses />.
 		shortTitle="Changelog"
 		tocLevels="1"
 		datePublished="2016-10-29T19:08:07-05:00"
-		dateModified="2021-07-21T06:22:14-05:00"
+		dateModified="2021-07-21T07:03:36-05:00"
 	>
 		<c:if test="${fn:endsWith('@{project.version}', '-SNAPSHOT') and !fn:endsWith('@{project.version}', '-POST-SNAPSHOT')}">
 			<changelog:release
@@ -47,24 +47,33 @@ along with ao-payments-stripe.  If not, see <http://www.gnu.org/licenses />.
 				artifactId="@{documented.artifactId}"
 				repository="@{nexusUrl}content/repositories/snapshots/"
 				scmUrl="@{project.scm.url}"
-			>
-				<ul>
-					<li>Minimum Java version changed from 1.8 to 11.</li>
-					<li>
-						Now supports Java 9+ modules.  Due to still having filename-based automatic module dependencies,
-						*-SNAPSHOT versions include <code>module-info.class</code> while releases include the
-						<code>Automatic-Module-Name</code> manifest entry.  To minimize the difference between these
-						modes, <code>module-info.java</code> does not perform any transitive requires.
-					</li>
-					<li>Maven artifact relocated from <code>com.aoindustries:ao-credit-cards-stripe</code> to <code>com.aoapps:ao-payments-stripe</code>.</li>
-					<li>Package renamed from <code>com.aoindustries.creditcards.stripe</code> to <code>com.aoapps.payments.stripe</code>.</li>
-					<li>
-						Fixed bug <code>This property cannot be expanded (sources). You may want to try expanding 'data.sources' instead.</code>
-						since upgrade to <ao:a href="https://stripe.com/docs/upgrades#2020-08-27">Stripe API 2020-08-27</ao:a>.
-					</li>
-				</ul>
-			</changelog:release>
+			/>
 		</c:if>
+
+		<changelog:release
+			projectName="@{documented.name}"
+			version="2.0.0"
+			datePublished="2021-07-21T07:03:36-05:00"
+			groupId="@{project.groupId}"
+			artifactId="@{documented.artifactId}"
+			scmUrl="@{project.scm.url}"
+		>
+			<ul>
+				<li>Minimum Java version changed from 1.8 to 11.</li>
+				<li>
+					Now supports Java 9+ modules.  Due to still having filename-based automatic module dependencies,
+					*-SNAPSHOT versions include <code>module-info.class</code> while releases include the
+					<code>Automatic-Module-Name</code> manifest entry.  To minimize the difference between these
+					modes, <code>module-info.java</code> does not perform any transitive requires.
+				</li>
+				<li>Maven artifact relocated from <code>com.aoindustries:ao-credit-cards-stripe</code> to <code>com.aoapps:ao-payments-stripe</code>.</li>
+				<li>Package renamed from <code>com.aoindustries.creditcards.stripe</code> to <code>com.aoapps.payments.stripe</code>.</li>
+				<li>
+					Fixed bug <code>This property cannot be expanded (sources). You may want to try expanding 'data.sources' instead.</code>
+					since upgrade to <ao:a href="https://stripe.com/docs/upgrades#2020-08-27">Stripe API 2020-08-27</ao:a>.
+				</li>
+			</ul>
+		</changelog:release>
 
 		<changelog:release
 			projectName="@{documented.name}"
