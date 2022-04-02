@@ -46,7 +46,7 @@ along with ao-payments-stripe.  If not, see <https://www.gnu.org/licenses/>.
 		<sonar.coverage.exclusions>**.*</sonar.coverage.exclusions>
 		<!-- Dependencies -->
 		<commons-lang3.version>3.12.0</commons-lang3.version>
-		<stripe-java.version>20.110.0</stripe-java.version>
+		<stripe-java.version>20.112.0</stripe-java.version>
 	</properties>
 
 	<name>AO Payments Stripe</name>
