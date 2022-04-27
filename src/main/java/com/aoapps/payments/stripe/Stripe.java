@@ -1425,27 +1425,27 @@ public class Stripe implements MerchantServicesProvider {
         // Both address and ZIP
         providerAvsResult = addressResult + "," + zipResult;
         // ADDRESS_Y_ZIP_5
-        if (addressResult.equals("pass") && zipResult.equals("pass")) {
+        if ("pass".equals(addressResult) && "pass".equals(zipResult)) {
           avsResult = AuthorizationResult.AvsResult.ADDRESS_Y_ZIP_5;
         }
         // ADDRESS_Y_ZIP_N
-        else if (addressResult.equals("pass")) {
+        else if ("pass".equals(addressResult)) {
           avsResult = AuthorizationResult.AvsResult.ADDRESS_Y_ZIP_N;
         }
         // ADDRESS_N_ZIP_5
-        else if (zipResult.equals("pass")) {
+        else if ("pass".equals(zipResult)) {
           avsResult = AuthorizationResult.AvsResult.ADDRESS_N_ZIP_5;
         }
         // ADDRESS_N_ZIP_N
-        else if (addressResult.equals("fail") && zipResult.equals("fail")) {
+        else if ("fail".equals(addressResult) && "fail".equals(zipResult)) {
           avsResult = AuthorizationResult.AvsResult.ADDRESS_N_ZIP_N;
         }
         // UNAVAILABLE
-        else if (addressResult.equals("unavailable") && zipResult.equals("unavailable")) {
+        else if ("unavailable".equals(addressResult) && "unavailable".equals(zipResult)) {
           avsResult = AuthorizationResult.AvsResult.UNAVAILABLE;
         }
         // SERVICE_NOT_SUPPORTED
-        else if (addressResult.equals("unchecked") && zipResult.equals("unchecked")) {
+        else if ("unchecked".equals(addressResult) && "unchecked".equals(zipResult)) {
           avsResult = AuthorizationResult.AvsResult.UNAVAILABLE;
         } else {
           avsResult = AuthorizationResult.AvsResult.UNKNOWN;
@@ -1533,7 +1533,7 @@ public class Stripe implements MerchantServicesProvider {
           PaymentMethodListParams.builder()
               .setCustomer(customer.getId())
               .setType(PaymentMethodListParams.Type.CARD)
-              .setLimit(100L) // Not performing pagination, it is very unlikely there will be more than 100 payment methods and all are the legacy card API
+              .setLimit(100L)// Not performing pagination, it is very unlikely there will be more than 100 payment methods and all are the legacy card API
               .build(),
           options
       );
