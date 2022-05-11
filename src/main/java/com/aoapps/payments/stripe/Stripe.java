@@ -23,18 +23,19 @@
 
 package com.aoapps.payments.stripe;
 
+import static com.aoapps.payments.CreditCard.MASK_CHARACTER;
+import static com.aoapps.payments.CreditCard.UNKNOWN_DIGIT;
+import static com.aoapps.payments.CreditCard.UNKNOWN_MIDDLE;
+import static com.aoapps.payments.Resources.PACKAGE_RESOURCES;
+
 import com.aoapps.collections.AoCollections;
 import com.aoapps.lang.io.LocalizedIOException;
 import com.aoapps.lang.math.SafeMath;
 import com.aoapps.payments.AuthorizationResult;
 import com.aoapps.payments.CaptureResult;
 import com.aoapps.payments.CreditCard;
-import static com.aoapps.payments.CreditCard.MASK_CHARACTER;
-import static com.aoapps.payments.CreditCard.UNKNOWN_DIGIT;
-import static com.aoapps.payments.CreditCard.UNKNOWN_MIDDLE;
 import com.aoapps.payments.CreditResult;
 import com.aoapps.payments.MerchantServicesProvider;
-import static com.aoapps.payments.Resources.PACKAGE_RESOURCES;
 import com.aoapps.payments.SaleResult;
 import com.aoapps.payments.TokenizedCreditCard;
 import com.aoapps.payments.Transaction;
@@ -94,9 +95,10 @@ import org.apache.commons.lang3.NotImplementedException;
 import org.apache.commons.lang3.tuple.Pair;
 
 /**
- * Provider for Stripe<br>
- * <br>
+ * Provider for Stripe.
+ * <p>
  * Configuration parameters:
+ * </p>
  * <ol>
  *   <li>apiKey - the Stripe account secret key</li>
  * </ol>
@@ -143,10 +145,17 @@ public class Stripe implements MerchantServicesProvider {
   /**
    * See <a href="https://stripe.com/docs/api/metadata?lang=java">Metadata</a>.
    */
-  private static final int
-      MAX_METADATA_KEYS = 50,
-      MAX_METADATA_KEY_LENGTH = 40,
-      MAX_METADATA_VALUE_LENGTH = 500;
+  private static final int MAX_METADATA_KEYS = 50;
+
+  /**
+   * See <a href="https://stripe.com/docs/api/metadata?lang=java">Metadata</a>.
+   */
+  private static final int MAX_METADATA_KEY_LENGTH = 40;
+
+  /**
+   * See <a href="https://stripe.com/docs/api/metadata?lang=java">Metadata</a>.
+   */
+  private static final int MAX_METADATA_VALUE_LENGTH = 500;
 
   /**
    * The maximum allowed statement descriptor length.
@@ -168,6 +177,9 @@ public class Stripe implements MerchantServicesProvider {
 
   private final RequestOptions options;
 
+  /**
+   * Creates a new String provider.
+   */
   public Stripe(String providerId, String apiKey) {
     this.providerId = providerId;
     this.apiKey = apiKey;
@@ -472,6 +484,7 @@ public class Stripe implements MerchantServicesProvider {
   }
 
   /**
+   * Adds customer parameters.
    * <ol>
    * <li>See <a href="https://stripe.com/docs/api/customers/create?lang=java">Create a customer</a>.</li>
    * <li>See <a href="https://stripe.com/docs/api/customers/update?lang=java">Update a customer</a>.</li>
@@ -532,6 +545,7 @@ public class Stripe implements MerchantServicesProvider {
   }
 
   /**
+   * Adds card parameters.
    * <ol>
    * <li>See <a href="https://stripe.com/docs/api/cards/create?lang=java">Create a card</a>.</li>
    * <li>See <a href="https://stripe.com/docs/api/cards/update?lang=java">Update a card</a>.</li>
@@ -570,28 +584,28 @@ public class Stripe implements MerchantServicesProvider {
   ) {
     // type: set to "card" other places as-needed
     PaymentMethodCreateParams.BillingDetails.Address address;
-    {
-      PaymentMethodCreateParams.BillingDetails.Address.Builder builder = PaymentMethodCreateParams.BillingDetails.Address.builder();
-      boolean paramSet = false;
-      paramSet |= addParam(false, builder::setCity, creditCard.getCity());
-      paramSet |= addParam(false, builder::setCountry, creditCard.getCountryCode());
-      paramSet |= addParam(false, builder::setLine1, creditCard.getStreetAddress1());
-      paramSet |= addParam(false, builder::setLine2, creditCard.getStreetAddress2());
-      paramSet |= addParam(false, builder::setPostalCode, creditCard.getPostalCode());
-      paramSet |= addParam(false, builder::setState, creditCard.getState());
-      address = paramSet ? builder.build() : null;
-    }
-    PaymentMethodCreateParams.BillingDetails billing_details;
-    {
-      PaymentMethodCreateParams.BillingDetails.Builder builder = PaymentMethodCreateParams.BillingDetails.builder();
-      boolean paramSet = false;
-      paramSet |= addParam(false, builder::setAddress, address);
-      paramSet |= addParam(false, builder::setEmail, creditCard.getEmail());
-      paramSet |= addParam(false, builder::setName, CreditCard.getFullName(creditCard.getFirstName(), creditCard.getLastName()));
-      paramSet |= addParam(false, builder::setPhone, creditCard.getPhone());
-      billing_details = paramSet ? builder.build() : null;
-    }
-    addParam(false, paymentMethodParams::setBillingDetails, billing_details);
+      {
+        PaymentMethodCreateParams.BillingDetails.Address.Builder builder = PaymentMethodCreateParams.BillingDetails.Address.builder();
+        boolean paramSet = false;
+        paramSet |= addParam(false, builder::setCity, creditCard.getCity());
+        paramSet |= addParam(false, builder::setCountry, creditCard.getCountryCode());
+        paramSet |= addParam(false, builder::setLine1, creditCard.getStreetAddress1());
+        paramSet |= addParam(false, builder::setLine2, creditCard.getStreetAddress2());
+        paramSet |= addParam(false, builder::setPostalCode, creditCard.getPostalCode());
+        paramSet |= addParam(false, builder::setState, creditCard.getState());
+        address = paramSet ? builder.build() : null;
+      }
+    PaymentMethodCreateParams.BillingDetails billingDetails;
+      {
+        PaymentMethodCreateParams.BillingDetails.Builder builder = PaymentMethodCreateParams.BillingDetails.builder();
+        boolean paramSet = false;
+        paramSet |= addParam(false, builder::setAddress, address);
+        paramSet |= addParam(false, builder::setEmail, creditCard.getEmail());
+        paramSet |= addParam(false, builder::setName, CreditCard.getFullName(creditCard.getFirstName(), creditCard.getLastName()));
+        paramSet |= addParam(false, builder::setPhone, creditCard.getPhone());
+        billingDetails = paramSet ? builder.build() : null;
+      }
+    addParam(false, paymentMethodParams::setBillingDetails, billingDetails);
   }
 
   /**
@@ -603,28 +617,28 @@ public class Stripe implements MerchantServicesProvider {
   ) {
     // type: set to "card" other places as-needed
     PaymentMethodUpdateParams.BillingDetails.Address address;
-    {
-      PaymentMethodUpdateParams.BillingDetails.Address.Builder builder = PaymentMethodUpdateParams.BillingDetails.Address.builder();
-      boolean paramSet = false;
-      paramSet |= addParam(false, builder::setCity, creditCard.getCity());
-      paramSet |= addParam(false, builder::setCountry, creditCard.getCountryCode());
-      paramSet |= addParam(false, builder::setLine1, creditCard.getStreetAddress1());
-      paramSet |= addParam(false, builder::setLine2, creditCard.getStreetAddress2());
-      paramSet |= addParam(false, builder::setPostalCode, creditCard.getPostalCode());
-      paramSet |= addParam(false, builder::setState, creditCard.getState());
-      address = paramSet ? builder.build() : null;
-    }
-    PaymentMethodUpdateParams.BillingDetails billing_details;
-    {
-      PaymentMethodUpdateParams.BillingDetails.Builder builder = PaymentMethodUpdateParams.BillingDetails.builder();
-      boolean paramSet = false;
-      paramSet |= addParam(false, builder::setAddress, address);
-      paramSet |= addParam(false, builder::setEmail, creditCard.getEmail());
-      paramSet |= addParam(false, builder::setName, CreditCard.getFullName(creditCard.getFirstName(), creditCard.getLastName()));
-      paramSet |= addParam(false, builder::setPhone, creditCard.getPhone());
-      billing_details = paramSet ? builder.build() : null;
-    }
-    addParam(false, paymentMethodParams::setBillingDetails, billing_details);
+      {
+        PaymentMethodUpdateParams.BillingDetails.Address.Builder builder = PaymentMethodUpdateParams.BillingDetails.Address.builder();
+        boolean paramSet = false;
+        paramSet |= addParam(false, builder::setCity, creditCard.getCity());
+        paramSet |= addParam(false, builder::setCountry, creditCard.getCountryCode());
+        paramSet |= addParam(false, builder::setLine1, creditCard.getStreetAddress1());
+        paramSet |= addParam(false, builder::setLine2, creditCard.getStreetAddress2());
+        paramSet |= addParam(false, builder::setPostalCode, creditCard.getPostalCode());
+        paramSet |= addParam(false, builder::setState, creditCard.getState());
+        address = paramSet ? builder.build() : null;
+      }
+    PaymentMethodUpdateParams.BillingDetails billingDetails;
+      {
+        PaymentMethodUpdateParams.BillingDetails.Builder builder = PaymentMethodUpdateParams.BillingDetails.builder();
+        boolean paramSet = false;
+        paramSet |= addParam(false, builder::setAddress, address);
+        paramSet |= addParam(false, builder::setEmail, creditCard.getEmail());
+        paramSet |= addParam(false, builder::setName, CreditCard.getFullName(creditCard.getFirstName(), creditCard.getLastName()));
+        paramSet |= addParam(false, builder::setPhone, creditCard.getPhone());
+        billingDetails = paramSet ? builder.build() : null;
+      }
+    addParam(false, paymentMethodParams::setBillingDetails, billingDetails);
   }
 
   /**
@@ -638,27 +652,27 @@ public class Stripe implements MerchantServicesProvider {
       String cardCode
   ) {
     PaymentMethodCreateParams.CardDetails cardParams;
-    {
-      PaymentMethodCreateParams.CardDetails.Builder builder = PaymentMethodCreateParams.CardDetails.builder();
-      builder.setExpMonth(expirationMonth == CreditCard.UNKNOWN_EXPIRATION_MONTH ? null : (long) expirationMonth);
-      builder.setExpYear(expirationYear == CreditCard.UNKNOWN_EXPIRATION_YEAR ? null : (long) expirationYear);
-      addParam(false, builder::setNumber, CreditCard.numbersOnly(cardNumber));
-      addParam(false, builder::setCvc, cardCode);
-      cardParams = builder.build();
-    }
+      {
+        PaymentMethodCreateParams.CardDetails.Builder builder = PaymentMethodCreateParams.CardDetails.builder();
+        builder.setExpMonth(expirationMonth == CreditCard.UNKNOWN_EXPIRATION_MONTH ? null : (long) expirationMonth);
+        builder.setExpYear(expirationYear == CreditCard.UNKNOWN_EXPIRATION_YEAR ? null : (long) expirationYear);
+        addParam(false, builder::setNumber, CreditCard.numbersOnly(cardNumber));
+        addParam(false, builder::setCvc, cardCode);
+        cardParams = builder.build();
+      }
     PaymentMethodCreateParams paymentMethodParams;
-    {
-      PaymentMethodCreateParams.Builder builder = PaymentMethodCreateParams.builder();
-      builder.setType(PaymentMethodCreateParams.Type.CARD);
-      builder.setCard(cardParams);
-      addPaymentMethodParams(creditCard, builder);
-      paymentMethodParams = builder.build();
-    }
+      {
+        PaymentMethodCreateParams.Builder builder = PaymentMethodCreateParams.builder();
+        builder.setType(PaymentMethodCreateParams.Type.CARD);
+        builder.setCard(cardParams);
+        addPaymentMethodParams(creditCard, builder);
+        paymentMethodParams = builder.build();
+      }
     return paymentMethodParams;
   }
 
   /**
-   * @see  #makePaymentMethodParams(com.aoapps.payments.CreditCard, java.lang.String, byte, short, java.lang.String)
+   * See {@link #makePaymentMethodParams(com.aoapps.payments.CreditCard, java.lang.String, byte, short, java.lang.String)}.
    */
   private static PaymentMethodCreateParams makePaymentMethodParams(CreditCard creditCard) {
     return makePaymentMethodParams(
@@ -675,37 +689,37 @@ public class Stripe implements MerchantServicesProvider {
    */
   private static PaymentIntentCreateParams.Shipping makeShippingParams(TransactionRequest transactionRequest, CreditCard creditCard) {
     PaymentIntentCreateParams.Shipping.Address address;
-    {
-      PaymentIntentCreateParams.Shipping.Address.Builder builder = PaymentIntentCreateParams.Shipping.Address.builder();
-      boolean paramSet = false;
-      paramSet |= addParam(false, builder::setLine1, transactionRequest.getShippingStreetAddress1());
-      paramSet |= addParam(false, builder::setCity, transactionRequest.getShippingCity());
-      paramSet |= addParam(false, builder::setCountry, transactionRequest.getShippingCountryCode());
-      paramSet |= addParam(false, builder::setLine2, transactionRequest.getShippingStreetAddress2());
-      paramSet |= addParam(false, builder::setPostalCode, transactionRequest.getShippingPostalCode());
-      paramSet |= addParam(false, builder::setState, transactionRequest.getShippingState());
-      address = paramSet ? builder.build() : null;
-    }
+      {
+        PaymentIntentCreateParams.Shipping.Address.Builder builder = PaymentIntentCreateParams.Shipping.Address.builder();
+        boolean paramSet = false;
+        paramSet |= addParam(false, builder::setLine1, transactionRequest.getShippingStreetAddress1());
+        paramSet |= addParam(false, builder::setCity, transactionRequest.getShippingCity());
+        paramSet |= addParam(false, builder::setCountry, transactionRequest.getShippingCountryCode());
+        paramSet |= addParam(false, builder::setLine2, transactionRequest.getShippingStreetAddress2());
+        paramSet |= addParam(false, builder::setPostalCode, transactionRequest.getShippingPostalCode());
+        paramSet |= addParam(false, builder::setState, transactionRequest.getShippingState());
+        address = paramSet ? builder.build() : null;
+      }
     String shippingName = CreditCard.getFullName(transactionRequest.getShippingFirstName(), transactionRequest.getShippingLastName());
     if (shippingName != null && shippingName.isEmpty()) {
       shippingName = null;
     }
     PaymentIntentCreateParams.Shipping shipping;
-    {
-      // When no shipping address and no shipping name, do not set shipping at all
-      if (address == null && shippingName == null) {
-        shipping = null;
-      } else {
-        PaymentIntentCreateParams.Shipping.Builder shippingBuilder = PaymentIntentCreateParams.Shipping.builder();
-        boolean paramSet = false;
-        paramSet |= addParam(false, shippingBuilder::setAddress, address);
-        paramSet |= addParam(false, shippingBuilder::setName, shippingName);
-        // Unused: carrier addParam(update, shippingParams, "address", addressParams);
-        paramSet |= addParam(false, shippingBuilder::setPhone, creditCard.getPhone());
-        // Unused: tracking_number
-        shipping = paramSet ? shippingBuilder.build() : null;
+      {
+        // When no shipping address and no shipping name, do not set shipping at all
+        if (address == null && shippingName == null) {
+          shipping = null;
+        } else {
+          PaymentIntentCreateParams.Shipping.Builder shippingBuilder = PaymentIntentCreateParams.Shipping.builder();
+          boolean paramSet = false;
+          paramSet |= addParam(false, shippingBuilder::setAddress, address);
+          paramSet |= addParam(false, shippingBuilder::setName, shippingName);
+          // Unused: carrier addParam(update, shippingParams, "address", addressParams);
+          paramSet |= addParam(false, shippingBuilder::setPhone, creditCard.getPhone());
+          // Unused: tracking_number
+          shipping = paramSet ? shippingBuilder.build() : null;
+        }
       }
-    }
     return shipping;
   }
 
@@ -773,6 +787,7 @@ public class Stripe implements MerchantServicesProvider {
    * <li>See <a href="https://stripe.com/docs/api/cards/object?lang=java">The card object</a>.</li>
    * <li>See <a href="https://wikipedia.org/wiki/Payment_card_number#Issuer_identification_number_(IIN)">Issuer identification number (IIN)</a>.</li>
    * </ol>
+   *
    * @param  maskedCardNumber  The old masked card number, when available.
    * @param  brand  The brand of a possible replacement card, when available.
    * @param  last4  The last four digits of a possible replacement card, when available.
@@ -781,21 +796,19 @@ public class Stripe implements MerchantServicesProvider {
    */
   private String getReplacementMaskedCardNumber(String maskedCardNumber, String brand, String last4, PrintWriter warningOut) {
     final String replacementMaskedCardNumber;
-    // If there is no brand or last4, there is nothing we can do
     if (brand == null || last4 == null) {
+      // If there is no brand or last4, there is nothing we can do
       replacementMaskedCardNumber = null;
-    }
-    // If last4 is not all digits, ignore
-    else if (!last4.equals(CreditCard.numbersOnly(last4))) {
+    } else if (!last4.equals(CreditCard.numbersOnly(last4))) {
+      // If last4 is not all digits, ignore
       if (warningOut != null) {
         warningOut.println(Stripe.class.getSimpleName() + "(" + providerId + ").getReplacementMaskedCardNumber: last4 is not all digits, ignoring: " + last4);
       } else if (logger.isLoggable(Level.WARNING)) {
         logger.log(Level.WARNING, "last4 is not all digits, ignoring: " + last4);
       }
       replacementMaskedCardNumber = null;
-    }
-    // If last4 is not length 4, ignore
-    else if (last4.length() != 4) {
+    } else if (last4.length() != 4) {
+      // If last4 is not length 4, ignore
       if (warningOut != null) {
         warningOut.println(Stripe.class.getSimpleName() + "(" + providerId + ").getReplacementMaskedCardNumber: last4 is not length 4, ignoring: " + last4);
       } else if (logger.isLoggable(Level.WARNING)) {
@@ -1322,11 +1335,11 @@ public class Stripe implements MerchantServicesProvider {
       );
     }
     if (e instanceof OAuthException) {
-      OAuthError oAuthError = ((OAuthException) e).getOauthError();
-      String errorDescription = oAuthError == null ? null : oAuthError.getErrorDescription();
+      OAuthError oauthError = ((OAuthException) e).getOauthError();
+      String errorDescription = oauthError == null ? null : oauthError.getErrorDescription();
       return new ConvertedError(
           TransactionResult.CommunicationResult.GATEWAY_ERROR,
-          Objects.toString(statusCode, "") + "," + Objects.toString(code, "") + "," + Objects.toString(oAuthError == null ? null : oAuthError.getError(), ""),
+          Objects.toString(statusCode, "") + "," + Objects.toString(code, "") + "," + Objects.toString(oauthError == null ? null : oauthError.getError(), ""),
           TransactionResult.ErrorCode.PROVIDER_CONFIGURATION_ERROR,
           errorDescription == null ? message : errorDescription,
           null,
@@ -1424,28 +1437,23 @@ public class Stripe implements MerchantServicesProvider {
       if (zipResult != null) {
         // Both address and ZIP
         providerAvsResult = addressResult + "," + zipResult;
-        // ADDRESS_Y_ZIP_5
         if ("pass".equals(addressResult) && "pass".equals(zipResult)) {
+          // ADDRESS_Y_ZIP_5
           avsResult = AuthorizationResult.AvsResult.ADDRESS_Y_ZIP_5;
-        }
-        // ADDRESS_Y_ZIP_N
-        else if ("pass".equals(addressResult)) {
+        } else if ("pass".equals(addressResult)) {
+          // ADDRESS_Y_ZIP_N
           avsResult = AuthorizationResult.AvsResult.ADDRESS_Y_ZIP_N;
-        }
-        // ADDRESS_N_ZIP_5
-        else if ("pass".equals(zipResult)) {
+        } else if ("pass".equals(zipResult)) {
+          // ADDRESS_N_ZIP_5
           avsResult = AuthorizationResult.AvsResult.ADDRESS_N_ZIP_5;
-        }
-        // ADDRESS_N_ZIP_N
-        else if ("fail".equals(addressResult) && "fail".equals(zipResult)) {
+        } else if ("fail".equals(addressResult) && "fail".equals(zipResult)) {
+          // ADDRESS_N_ZIP_N
           avsResult = AuthorizationResult.AvsResult.ADDRESS_N_ZIP_N;
-        }
-        // UNAVAILABLE
-        else if ("unavailable".equals(addressResult) && "unavailable".equals(zipResult)) {
+        } else if ("unavailable".equals(addressResult) && "unavailable".equals(zipResult)) {
+          // UNAVAILABLE
           avsResult = AuthorizationResult.AvsResult.UNAVAILABLE;
-        }
-        // SERVICE_NOT_SUPPORTED
-        else if ("unchecked".equals(addressResult) && "unchecked".equals(zipResult)) {
+        } else if ("unchecked".equals(addressResult) && "unchecked".equals(zipResult)) {
+          // SERVICE_NOT_SUPPORTED
           avsResult = AuthorizationResult.AvsResult.UNAVAILABLE;
         } else {
           avsResult = AuthorizationResult.AvsResult.UNKNOWN;
@@ -1585,6 +1593,8 @@ public class Stripe implements MerchantServicesProvider {
   }
 
   /**
+   * Implementation of {@link #sale(com.aoapps.payments.TransactionRequest, com.aoapps.payments.CreditCard)}
+   * and {@link #authorize(com.aoapps.payments.TransactionRequest, com.aoapps.payments.CreditCard)}.
    * <ol>
    * <li>See <a href="https://stripe.com/docs/api/payment_intents/create?lang=java">Create a PaymentIntent</a>.</li>
    * <li>See <a href="https://stripe.com/docs/api/payment_intents/confirm?lang=java">Confirm a PaymentIntent</a>.</li>
@@ -1612,90 +1622,90 @@ public class Stripe implements MerchantServicesProvider {
     try {
       String paymentMethodId;
       PaymentIntent paymentIntent;
-      {
-        // Convert amount into smallest unit
-        BigDecimal totalAmount = transactionRequest.getTotalAmount();
-        Currency currency = transactionRequest.getCurrency();
-        int currencyDigits = currency.getDefaultFractionDigits();
-        if (currencyDigits < 0) {
-          throw new AssertionError("currencyDigits < 0: " + currencyDigits);
-        }
-        BigInteger amount = totalAmount.scaleByPowerOfTen(currencyDigits).toBigIntegerExact();
-        // Create the PaymentIntent
-        PaymentIntentCreateParams paymentIntentParams;
         {
-          PaymentIntentCreateParams.Builder builder = PaymentIntentCreateParams.builder();
-          builder.setAmount(convertAmountToLong(amount));
-          builder.setCurrency(currency.getCurrencyCode());
-          // Unused: application_fee_amount
-          builder.setCaptureMethod(capture ? PaymentIntentCreateParams.CaptureMethod.AUTOMATIC : PaymentIntentCreateParams.CaptureMethod.MANUAL);
-          builder.setConfirm(true);
-          builder.setConfirmationMethod(PaymentIntentCreateParams.ConfirmationMethod.MANUAL);
-          customerId = creditCard.getProviderUniqueId();
-          if (customerId != null) {
-            // Is a stored card
-            builder.setCustomer(customerId);
+          // Convert amount into smallest unit
+          BigDecimal totalAmount = transactionRequest.getTotalAmount();
+          Currency currency = transactionRequest.getCurrency();
+          int currencyDigits = currency.getDefaultFractionDigits();
+          if (currencyDigits < 0) {
+            throw new AssertionError("currencyDigits < 0: " + currencyDigits);
           }
-          addParam(false, builder::setDescription, transactionRequest.getDescription());
-          addParam(false, builder::putAllMetadata, makePaymentIntentMetadata(transactionRequest, creditCard, false));
-          // Unused: on_behalf_of
-          if (customerId != null) {
-            // Is a stored card
-            Customer customer;
+          BigInteger amount = totalAmount.scaleByPowerOfTen(currencyDigits).toBigIntegerExact();
+          // Create the PaymentIntent
+          PaymentIntentCreateParams paymentIntentParams;
             {
-              Pair<Customer, String> combined = getDefaultPaymentMethodId(
-                  Customer.retrieve(
-                      customerId,
-                      // "sources" no longer included by default: https://stripe.com/docs/upgrades#2020-08-27
-                      CustomerRetrieveParams.builder().addExpand("sources").build(),
-                      options
-                  )
-              );
-              customer = combined.getKey();
-              paymentMethodId = combined.getValue();
-            }
-            if (paymentMethodId == null) {
-              // Look for a default source for backward compatibility
-              paymentMethodId = customer.getDefaultSource();
-            }
-          } else {
-            // Is a new card
-            paymentMethodId = PaymentMethod.create(makePaymentMethodParams(creditCard), options).getId();
-          }
-          builder.setPaymentMethod(paymentMethodId);
-          // Unused: payment_method_types
-          if (transactionRequest.getEmailCustomer()) {
-            // TODO: The actual sending of email is configured on the Stripe account.  How to control through API?
-            addParam(false, builder::setReceiptEmail, creditCard.getEmail());
-          }
-          // Unused: save_payment_method
-          addParam(false, builder::setShipping, makeShippingParams(transactionRequest, creditCard));
-          // Unused: source
-          String orderNumber = transactionRequest.getOrderNumber();
-          if (orderNumber != null) {
-            orderNumber = orderNumber.trim();
-            if (!orderNumber.isEmpty()) {
-              // Avoid "The statement descriptor must contain at least one alphabetic character."
-              boolean hasAlpha = false;
-              for (int i = 0, len = orderNumber.length(), codePoint; i < len; i += Character.charCount(codePoint)) {
-                codePoint = orderNumber.codePointAt(i);
-                if (Character.isAlphabetic(codePoint)) {
-                  hasAlpha = true;
-                  break;
+              PaymentIntentCreateParams.Builder builder = PaymentIntentCreateParams.builder();
+              builder.setAmount(convertAmountToLong(amount));
+              builder.setCurrency(currency.getCurrencyCode());
+              // Unused: application_fee_amount
+              builder.setCaptureMethod(capture ? PaymentIntentCreateParams.CaptureMethod.AUTOMATIC : PaymentIntentCreateParams.CaptureMethod.MANUAL);
+              builder.setConfirm(true);
+              builder.setConfirmationMethod(PaymentIntentCreateParams.ConfirmationMethod.MANUAL);
+              customerId = creditCard.getProviderUniqueId();
+              if (customerId != null) {
+                // Is a stored card
+                builder.setCustomer(customerId);
+              }
+              addParam(false, builder::setDescription, transactionRequest.getDescription());
+              addParam(false, builder::putAllMetadata, makePaymentIntentMetadata(transactionRequest, creditCard, false));
+              // Unused: on_behalf_of
+              if (customerId != null) {
+                // Is a stored card
+                Customer customer;
+                  {
+                    Pair<Customer, String> combined = getDefaultPaymentMethodId(
+                        Customer.retrieve(
+                            customerId,
+                            // "sources" no longer included by default: https://stripe.com/docs/upgrades#2020-08-27
+                            CustomerRetrieveParams.builder().addExpand("sources").build(),
+                            options
+                        )
+                    );
+                    customer = combined.getKey();
+                    paymentMethodId = combined.getValue();
+                  }
+                if (paymentMethodId == null) {
+                  // Look for a default source for backward compatibility
+                  paymentMethodId = customer.getDefaultSource();
+                }
+              } else {
+                // Is a new card
+                paymentMethodId = PaymentMethod.create(makePaymentMethodParams(creditCard), options).getId();
+              }
+              builder.setPaymentMethod(paymentMethodId);
+              // Unused: payment_method_types
+              if (transactionRequest.getEmailCustomer()) {
+                // TODO: The actual sending of email is configured on the Stripe account.  How to control through API?
+                addParam(false, builder::setReceiptEmail, creditCard.getEmail());
+              }
+              // Unused: save_payment_method
+              addParam(false, builder::setShipping, makeShippingParams(transactionRequest, creditCard));
+              // Unused: source
+              String orderNumber = transactionRequest.getOrderNumber();
+              if (orderNumber != null) {
+                orderNumber = orderNumber.trim();
+                if (!orderNumber.isEmpty()) {
+                  // Avoid "The statement descriptor must contain at least one alphabetic character."
+                  boolean hasAlpha = false;
+                  for (int i = 0, len = orderNumber.length(), codePoint; i < len; i += Character.charCount(codePoint)) {
+                    codePoint = orderNumber.codePointAt(i);
+                    if (Character.isAlphabetic(codePoint)) {
+                      hasAlpha = true;
+                      break;
+                    }
+                  }
+                  String statementDescriptor = hasAlpha ? orderNumber : (STATEMENT_DESCRIPTOR_PREFIX + orderNumber);
+                  if (statementDescriptor.length() <= MAX_STATEMENT_DESCRIPTOR_LEN) {
+                    builder.setStatementDescriptor(statementDescriptor);
+                  }
                 }
               }
-              String statement_descriptor = hasAlpha ? orderNumber : (STATEMENT_DESCRIPTOR_PREFIX + orderNumber);
-              if (statement_descriptor.length() <= MAX_STATEMENT_DESCRIPTOR_LEN) {
-                builder.setStatementDescriptor(statement_descriptor);
-              }
+              paymentIntentParams = builder.build();
             }
-          }
-          paymentIntentParams = builder.build();
+          // Unused: transfer_data
+          // Unused: transfer_group
+          paymentIntent = PaymentIntent.create(paymentIntentParams, options); // TODO: last_payment_error becomes StripeError in exception?
         }
-        // Unused: transfer_data
-        // Unused: transfer_group
-        paymentIntent = PaymentIntent.create(paymentIntentParams, options); // TODO: last_payment_error becomes StripeError in exception?
-      }
 
       // Find the paymentMethod from the charges
       ChargeCollection charges = paymentIntent.getCharges();
@@ -1718,14 +1728,14 @@ public class Stripe implements MerchantServicesProvider {
       // AVS
       final String providerAvsResult;
       final AuthorizationResult.AvsResult avsResult;
-      {
-        Pair<String, AuthorizationResult.AvsResult> combined = getAvsResult(
-            cardChecks == null ? null : cardChecks.getAddressLine1Check(),
-            cardChecks == null ? null : cardChecks.getAddressPostalCodeCheck()
-        );
-        providerAvsResult = combined.getLeft();
-        avsResult = combined.getRight();
-      }
+        {
+          Pair<String, AuthorizationResult.AvsResult> combined = getAvsResult(
+              cardChecks == null ? null : cardChecks.getAddressLine1Check(),
+              cardChecks == null ? null : cardChecks.getAddressPostalCodeCheck()
+          );
+          providerAvsResult = combined.getLeft();
+          avsResult = combined.getRight();
+        }
       // TODO: FraudDetails fraudDetails = charge.getFraudDetails();
       // TODO: review reason
       // TODO: check "paid"?
@@ -1927,12 +1937,12 @@ public class Stripe implements MerchantServicesProvider {
     try {
       PaymentIntent intent = PaymentIntent.retrieve(id, options);
       PaymentIntentCaptureParams params;
-      {
-        PaymentIntentCaptureParams.Builder builder = PaymentIntentCaptureParams.builder();
-        // Unused: amount_to_capture
-        // Unused: application_fee_amount
-        params = builder.build();
-      }
+        {
+          PaymentIntentCaptureParams.Builder builder = PaymentIntentCaptureParams.builder();
+          // Unused: amount_to_capture
+          // Unused: application_fee_amount
+          params = builder.build();
+        }
       PaymentIntent captured = intent.capture(params, options);
       String status = captured.getStatus();
       if ("succeeded".equals(status)) {
@@ -2009,15 +2019,15 @@ public class Stripe implements MerchantServicesProvider {
     try {
       // Create the Customer
       Customer customer;
-      {
-        CustomerCreateParams customerParams;
         {
-          CustomerCreateParams.Builder builder = CustomerCreateParams.builder();
-          addCustomerParams(creditCard, builder);
-          customerParams = builder.build();
+          CustomerCreateParams customerParams;
+          {
+            CustomerCreateParams.Builder builder = CustomerCreateParams.builder();
+            addCustomerParams(creditCard, builder);
+            customerParams = builder.build();
+          }
+          customer = Customer.create(customerParams, options);
         }
-        customer = Customer.create(customerParams, options);
-      }
       // Create the payment method
       PaymentMethod paymentMethod = PaymentMethod.create(makePaymentMethodParams(creditCard), options);
       // Attach the payment method to the customer
@@ -2091,22 +2101,22 @@ public class Stripe implements MerchantServicesProvider {
       }
 
       String paymentMethodId;
-      {
-        Pair<Customer, String> combined = getDefaultPaymentMethodId(customer);
-        customer = combined.getKey();
-        paymentMethodId = combined.getValue();
-      }
+        {
+          Pair<Customer, String> combined = getDefaultPaymentMethodId(customer);
+          customer = combined.getKey();
+          paymentMethodId = combined.getValue();
+        }
       String defaultSource = customer.getDefaultSource();
       if (paymentMethodId != null) {
         // Find the PaymentMethod
         PaymentMethod defaultPaymentMethod = PaymentMethod.retrieve(paymentMethodId, options);
         // Update PaymentMethod
         PaymentMethodUpdateParams paymentMethodParams;
-        {
-          PaymentMethodUpdateParams.Builder builder = PaymentMethodUpdateParams.builder();
-          addPaymentMethodParams(creditCard, builder);
-          paymentMethodParams = builder.build();
-        }
+          {
+            PaymentMethodUpdateParams.Builder builder = PaymentMethodUpdateParams.builder();
+            addPaymentMethodParams(creditCard, builder);
+            paymentMethodParams = builder.build();
+          }
         defaultPaymentMethod.update(paymentMethodParams, options);
         // Check for incomplete conversion to PaymentMethod
         if (defaultSource != null) {
@@ -2170,16 +2180,16 @@ public class Stripe implements MerchantServicesProvider {
           options
       );
 
-      String paymentMethodId;
-      {
-        Pair<Customer, String> combined = getDefaultPaymentMethodId(customer);
-        customer = combined.getKey();
-        paymentMethodId = combined.getValue();
-      }
-      String defaultSource = customer.getDefaultSource();
+      final String paymentMethodId;
+        {
+          Pair<Customer, String> combined = getDefaultPaymentMethodId(customer);
+          customer = combined.getKey();
+          paymentMethodId = combined.getValue();
+        }
+      final String defaultSource = customer.getDefaultSource();
 
       // Create the payment method
-      PaymentMethod paymentMethod = PaymentMethod.create(
+      final PaymentMethod paymentMethod = PaymentMethod.create(
           makePaymentMethodParams(
               creditCard,
               cardNumber,
@@ -2261,11 +2271,11 @@ public class Stripe implements MerchantServicesProvider {
       );
 
       String paymentMethodId;
-      {
-        Pair<Customer, String> combined = getDefaultPaymentMethodId(customer);
-        customer = combined.getKey();
-        paymentMethodId = combined.getValue();
-      }
+        {
+          Pair<Customer, String> combined = getDefaultPaymentMethodId(customer);
+          customer = combined.getKey();
+          paymentMethodId = combined.getValue();
+        }
       String defaultSource = customer.getDefaultSource();
 
       if (paymentMethodId != null) {
@@ -2377,84 +2387,84 @@ public class Stripe implements MerchantServicesProvider {
           String last4;
           Byte expMonth;
           Short expYear;
-          {
-            String paymentMethodId;
             {
-              Pair<Customer, String> combined = getDefaultPaymentMethodId(
-                  Customer.retrieve(
-                      customerId,
-                      // "sources" no longer included by default: https://stripe.com/docs/upgrades#2020-08-27
-                      CustomerRetrieveParams.builder().addExpand("sources").build(),
-                      options
-                  )
-              );
-              customer = combined.getKey();
-              paymentMethodId = combined.getValue();
-            }
-            if (paymentMethodId != null) {
-              PaymentMethod defaultPaymentMethod = PaymentMethod.retrieve(paymentMethodId, options);
-              PaymentMethod.Card defaultCard = defaultPaymentMethod.getCard();
-              brand = defaultCard.getBrand();
-              last4 = defaultCard.getLast4();
-              expMonth = safeCastMonth(defaultCard.getExpMonth());
-              expYear = safeCastYear(defaultCard.getExpYear());
-            } else {
-              // Look for a default source for backward compatibility
-              String defaultSource = customer.getDefaultSource();
-              if (defaultSource != null) {
-                Card defaultCard = (Card) customer.getSources().retrieve(defaultSource, options);
+              String paymentMethodId;
+                {
+                  Pair<Customer, String> combined = getDefaultPaymentMethodId(
+                      Customer.retrieve(
+                          customerId,
+                          // "sources" no longer included by default: https://stripe.com/docs/upgrades#2020-08-27
+                          CustomerRetrieveParams.builder().addExpand("sources").build(),
+                          options
+                      )
+                  );
+                  customer = combined.getKey();
+                  paymentMethodId = combined.getValue();
+                }
+              if (paymentMethodId != null) {
+                PaymentMethod defaultPaymentMethod = PaymentMethod.retrieve(paymentMethodId, options);
+                PaymentMethod.Card defaultCard = defaultPaymentMethod.getCard();
                 brand = defaultCard.getBrand();
                 last4 = defaultCard.getLast4();
                 expMonth = safeCastMonth(defaultCard.getExpMonth());
                 expYear = safeCastYear(defaultCard.getExpYear());
               } else {
-                if (warningOut != null) {
-                  warningOut.println(Stripe.class.getSimpleName() + "(" + providerId + ").getTokenizedCreditCards: Customer does not have any default source: " + customerId);
-                } else if (logger.isLoggable(Level.WARNING)) {
-                  logger.log(Level.WARNING, "Customer does not have any default source: " + customerId);
+                // Look for a default source for backward compatibility
+                String defaultSource = customer.getDefaultSource();
+                if (defaultSource != null) {
+                  Card defaultCard = (Card) customer.getSources().retrieve(defaultSource, options);
+                  brand = defaultCard.getBrand();
+                  last4 = defaultCard.getLast4();
+                  expMonth = safeCastMonth(defaultCard.getExpMonth());
+                  expYear = safeCastYear(defaultCard.getExpYear());
+                } else {
+                  if (warningOut != null) {
+                    warningOut.println(Stripe.class.getSimpleName() + "(" + providerId + ").getTokenizedCreditCards: Customer does not have any default source: " + customerId);
+                  } else if (logger.isLoggable(Level.WARNING)) {
+                    logger.log(Level.WARNING, "Customer does not have any default source: " + customerId);
+                  }
+                  brand = null;
+                  last4 = null;
+                  expMonth = null;
+                  expYear = null;
                 }
-                brand = null;
-                last4 = null;
-                expMonth = null;
-                expYear = null;
               }
             }
-          }
           // Find the persisted card
           CreditCard persistedCard = persistedCards.get(customerId);
           // Detect any updated expiration date
           Byte replacementExpirationMonth;
           Short replacementExpirationYear;
-          {
-            // Find the current expiration, if known
-            Byte expirationMonth;
-            Short expirationYear;
-            if (persistedCard != null) {
-              expirationMonth = persistedCard.getExpirationMonth(); // TODO: 3.0: Make nullable Byte
-              if (expirationMonth == CreditCard.UNKNOWN_EXPIRATION_MONTH) {
+            {
+              // Find the current expiration, if known
+              Byte expirationMonth;
+              Short expirationYear;
+              if (persistedCard != null) {
+                expirationMonth = persistedCard.getExpirationMonth(); // TODO: 3.0: Make nullable Byte
+                if (expirationMonth == CreditCard.UNKNOWN_EXPIRATION_MONTH) {
+                  expirationMonth = null;
+                }
+                expirationYear = persistedCard.getExpirationYear(); // TODO: 3.0: Make nullable Short
+                if (expirationYear == CreditCard.UNKNOWN_EXPIRATION_YEAR) {
+                  expirationYear = null;
+                }
+              } else {
                 expirationMonth = null;
-              }
-              expirationYear = persistedCard.getExpirationYear(); // TODO: 3.0: Make nullable Short
-              if (expirationYear == CreditCard.UNKNOWN_EXPIRATION_YEAR) {
                 expirationYear = null;
               }
-            } else {
-              expirationMonth = null;
-              expirationYear = null;
+              if (
+                  expirationMonth == null || !expirationMonth.equals(expMonth)
+                      || expirationYear == null || !expirationYear.equals(expYear)
+              ) {
+                // Changed
+                replacementExpirationMonth = expMonth;
+                replacementExpirationYear = expYear;
+              } else {
+                // Not changed
+                replacementExpirationMonth = null;
+                replacementExpirationYear = null;
+              }
             }
-            if (
-                expirationMonth == null || !expirationMonth.equals(expMonth)
-                    || expirationYear == null || !expirationYear.equals(expYear)
-            ) {
-              // Changed
-              replacementExpirationMonth = expMonth;
-              replacementExpirationYear = expYear;
-            } else {
-              // Not changed
-              replacementExpirationMonth = null;
-              replacementExpirationYear = null;
-            }
-          }
 
           TokenizedCreditCard card = new TokenizedCreditCard(
               customerId,
