@@ -30,4 +30,4 @@ module com.aoapps.payments.stripe {
   requires stripe.java; // <groupId>com.stripe</groupId><artifactId>stripe-java</artifactId>
   // Java SE
   requires java.logging;
-} // TODO: Avoiding rewrite-maven-plugin-4.22.2 truncation
+}
