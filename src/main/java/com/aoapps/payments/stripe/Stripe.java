@@ -1708,15 +1708,13 @@ public class Stripe implements MerchantServicesProvider {
         }
 
       // Find the paymentMethod from the charges
-      ChargeCollection charges = paymentIntent.getCharges();
-      List<Charge> chargeList = charges == null ? null : charges.getData();
+      Charge latestCharge = paymentIntent.getLatestChargeObject();
       Charge.PaymentMethodDetails paymentMethodDetails = null;
-      if (chargeList != null) {
-        for (Charge charge : chargeList) {
-          if (paymentMethodId.equals(charge.getPaymentMethod())) {
-            paymentMethodDetails = charge.getPaymentMethodDetails();
-            break;
-          }
+      if (latestCharge != null) {
+        if (paymentMethodId.equals(latestCharge.getPaymentMethod())) {
+          paymentMethodDetails = latestCharge.getPaymentMethodDetails();
+        } else if (logger.isLoggable(Level.WARNING)) {
+          logger.log(Level.WARNING, "paymentMethodId != paymentIntent.latestCharge.paymentMethod: " + paymentMethodId + " != " + latestCharge.getPaymentMethod());
         }
       }
       Charge.PaymentMethodDetails.Card card = paymentMethodDetails == null ? null : paymentMethodDetails.getCard();
@@ -1778,23 +1776,10 @@ public class Stripe implements MerchantServicesProvider {
           (capture ? "succeeded" : "requires_capture").equals(status)
       ) {
         final String approvalCode;
-        if (chargeList == null || chargeList.isEmpty()) {
+        if (latestCharge == null) {
           approvalCode = null;
-        } else if (chargeList.size() == 1) {
-          approvalCode = chargeList.get(0).getId();
         } else {
-          // Append into comma-separated list for multiple charges
-          StringBuilder aprs = new StringBuilder();
-          for (Charge charge : chargeList) {
-            String apr = chargeList.get(0).getId();
-            if (apr != null) {
-              if (aprs.length() > 0) {
-                aprs.append(',');
-              }
-              aprs.append(apr);
-            }
-          }
-          approvalCode = aprs.length() == 0 ? null : aprs.toString();
+          approvalCode = latestCharge.getId();
         }
         return new AuthorizationResult(
             providerId,
