@@ -22,7 +22,7 @@ Provider for [Stripe](https://stripe.com/).
 * [Project Home](https://oss.aoapps.com/payments/stripe/)
 * [Changelog](https://oss.aoapps.com/payments/stripe/changelog)
 * [API Docs](https://oss.aoapps.com/payments/stripe/apidocs/)
-* [Maven Central Repository](https://search.maven.org/artifact/com.aoapps/ao-payments-stripe)
+* [Maven Central Repository](https://central.sonatype.com/search?namespace=com.aoapps&q=a%3Aao-payments-stripe)
 * [GitHub](https://github.com/ao-apps/ao-payments-stripe)
 
 ## Contact Us
