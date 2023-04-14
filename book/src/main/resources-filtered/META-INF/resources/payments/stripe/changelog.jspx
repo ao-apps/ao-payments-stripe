@@ -37,7 +37,7 @@ along with ao-payments-stripe.  If not, see <https://www.gnu.org/licenses/>.
     shortTitle="Changelog"
     tocLevels="1"
     datePublished="2016-10-29T19:08:07-05:00"
-    dateModified="2023-02-26T14:03:56Z"
+    dateModified="2023-04-14T16:43:04Z"
   >
     <c:if test="${fn:endsWith('@{project.version}', '-SNAPSHOT') and !fn:endsWith('@{project.version}', '-POST-SNAPSHOT')}">
       <changelog:release
@@ -125,7 +125,7 @@ along with ao-payments-stripe.  If not, see <https://www.gnu.org/licenses/>.
       <ul>
         <li>
           <p>
-            Upgraded to current version of <ao:a href="https://central.sonatype.com/search?namespace=com.stripe&amp;q=a%3Astripe-java/20.30.0/jar">com.stripe:stripe-java:jar:20.30.0</ao:a>,
+            Upgraded to current version of <ao:a href="https://central.sonatype.com/artifact/com.stripe/stripe-java/20.30.0">com.stripe:stripe-java:jar:20.30.0</ao:a>,
             which uses <ao:a href="https://stripe.com/docs/upgrades#2020-08-27">Stripe API version 2020-08-27</ao:a>.
           </p>
           <p>
@@ -152,7 +152,7 @@ along with ao-payments-stripe.  If not, see <https://www.gnu.org/licenses/>.
           This is to help 3rd-party parsers that fail to perform full Maven-compatible substitutions.
         </li>
         <li>
-          Upgraded to current version of <ao:a href="https://central.sonatype.com/search?namespace=com.stripe&amp;q=a%3Astripe-java/18.12.0/jar">com.stripe:stripe-java:jar:18.12.0</ao:a>,
+          Upgraded to current version of <ao:a href="https://central.sonatype.com/artifact/com.stripe/stripe-java/18.12.0">com.stripe:stripe-java:jar:18.12.0</ao:a>,
           which uses <ao:a href="https://stripe.com/docs/upgrades#2020-03-02">Stripe API version 2020-03-02</ao:a>.
         </li>
         <li>Updated dependencies.</li>
@@ -169,7 +169,7 @@ along with ao-payments-stripe.  If not, see <https://www.gnu.org/licenses/>.
     >
       <ul>
         <li>
-          Upgraded to current version of <ao:a href="https://central.sonatype.com/search?namespace=com.stripe&amp;q=a%3Astripe-java/12.1.0/jar">com.stripe:stripe-java:jar:12.1.0</ao:a>,
+          Upgraded to current version of <ao:a href="https://central.sonatype.com/artifact/com.stripe/stripe-java/12.1.0">com.stripe:stripe-java:jar:12.1.0</ao:a>,
           which uses <ao:a href="https://stripe.com/docs/upgrades#2019-09-09">Stripe API version 2019-09-09</ao:a>.
         </li>
       </ul>
@@ -186,7 +186,7 @@ along with ao-payments-stripe.  If not, see <https://www.gnu.org/licenses/>.
       <ul>
         <li>Minimum Java version changed from 1.6 to 1.8.</li>
         <li>
-          Upgraded to current version of <ao:a href="https://central.sonatype.com/search?namespace=com.stripe&amp;q=a%3Astripe-java/10.1.0/jar">com.stripe:stripe-java:jar:10.1.0</ao:a>,
+          Upgraded to current version of <ao:a href="https://central.sonatype.com/artifact/com.stripe/stripe-java/10.1.0">com.stripe:stripe-java:jar:10.1.0</ao:a>,
           which uses <ao:a href="https://stripe.com/docs/upgrades#2019-05-16">Stripe API version 2019-05-16</ao:a>.
         </li>
         <li>
