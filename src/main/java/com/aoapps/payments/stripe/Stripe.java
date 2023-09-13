@@ -1,6 +1,6 @@
 /*
  * ao-payments-stripe - Provider for Stripe.
- * Copyright (C) 2015, 2016, 2019, 2020, 2021, 2022  AO Industries, Inc.
+ * Copyright (C) 2015, 2016, 2019, 2020, 2021, 2022, 2023  AO Industries, Inc.
  *     support@aoindustries.com
  *     7262 Bull Pen Cir
  *     Mobile, AL 36695
@@ -1636,6 +1636,15 @@ public class Stripe implements MerchantServicesProvider {
             {
               PaymentIntentCreateParams.Builder builder = PaymentIntentCreateParams.builder();
               builder.setAmount(convertAmountToLong(amount));
+              // Java API 23.0.0 compatibility
+              // See https://github.com/stripe/stripe-java/releases/tag/v23.0.0
+              // API 2023-08-16 compatibility
+              // See https://stripe.com/docs/upgrades#2023-08-16
+              // See https://stripe.com/docs/api/payment_intents/object#payment_intent_object-automatic_payment_methods
+              builder.setAutomaticPaymentMethods(PaymentIntentCreateParams.AutomaticPaymentMethods.builder()
+                  .setAllowRedirects(PaymentIntentCreateParams.AutomaticPaymentMethods.AllowRedirects.NEVER)
+                  .setEnabled(true)
+                  .build());
               builder.setCurrency(currency.getCurrencyCode());
               // Unused: application_fee_amount
               builder.setCaptureMethod(capture ? PaymentIntentCreateParams.CaptureMethod.AUTOMATIC : PaymentIntentCreateParams.CaptureMethod.MANUAL);
