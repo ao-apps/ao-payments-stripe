@@ -1649,7 +1649,10 @@ public class Stripe implements MerchantServicesProvider {
               // Unused: application_fee_amount
               builder.setCaptureMethod(capture ? PaymentIntentCreateParams.CaptureMethod.AUTOMATIC : PaymentIntentCreateParams.CaptureMethod.MANUAL);
               builder.setConfirm(true);
-              builder.setConfirmationMethod(PaymentIntentCreateParams.ConfirmationMethod.MANUAL);
+              // API 2023-08-16 compatibility
+              // invalid_request_error - automatic_payment_methods
+              // You may only specify one of these parameters: automatic_payment_methods, confirmation_method
+              // builder.setConfirmationMethod(PaymentIntentCreateParams.ConfirmationMethod.MANUAL);
               customerId = creditCard.getProviderUniqueId();
               if (customerId != null) {
                 // Is a stored card
