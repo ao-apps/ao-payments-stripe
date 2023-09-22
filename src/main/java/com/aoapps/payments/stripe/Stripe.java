@@ -56,7 +56,6 @@ import com.stripe.exception.StripeException;
 import com.stripe.exception.oauth.OAuthException;
 import com.stripe.model.Card;
 import com.stripe.model.Charge;
-import com.stripe.model.ChargeCollection;
 import com.stripe.model.Customer;
 import com.stripe.model.PaymentIntent;
 import com.stripe.model.PaymentMethod;
