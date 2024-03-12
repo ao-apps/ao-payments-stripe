@@ -1,6 +1,6 @@
 /*
  * ao-payments-stripe - Provider for Stripe.
- * Copyright (C) 2015, 2016, 2019, 2020, 2021, 2022, 2023  AO Industries, Inc.
+ * Copyright (C) 2015, 2016, 2019, 2020, 2021, 2022, 2023, 2024  AO Industries, Inc.
  *     support@aoindustries.com
  *     7262 Bull Pen Cir
  *     Mobile, AL 36695
@@ -900,7 +900,7 @@ public class Stripe implements MerchantServicesProvider {
    */
   private ConvertedError convertError(String maskedCardNumber, Byte expirationMonth, Short expirationYear, StripeException e, PrintWriter warningOut) {
     String requestId = e.getRequestId(); // TODO: Return this via API?
-    Integer statusCode = e.getStatusCode();
+    final Integer statusCode = e.getStatusCode();
     StripeError stripeError = e.getStripeError();
 
     // For some errors that could be handled programmatically, a short string indicating the error code reported.
