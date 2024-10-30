@@ -95,34 +95,27 @@ import org.apache.commons.lang3.tuple.Pair;
 
 /**
  * Provider for Stripe.
- * <p>
- * Configuration parameters:
- * </p>
+ *
+ * <p>Configuration parameters:</p>
+ *
  * <ol>
  *   <li>apiKey - the Stripe account secret key</li>
  * </ol>
- * <p>
- * TODO: Support testMode with optional testApiKey.  This would require
- * testMode on CreditCard, too.
- * </p>
- * <p>
- * TODO: Support Stripe.js
- * </p>
- * <p>
- * TODO: Support Idempotent Requests with automatic retry on network errors.
- * </p>
- * <p>
- * TODO: Support <a href="https://stripe.com/docs/api/request_ids?lang=java">Request IDs</a>.
- * </p>
- * <p>
- * TODO: Support <a href="https://stripe.com/docs/connect/direct-charges#collecting-fees">Collecting application fees</a>?
- * </p>
- * <p>
- * TODO: Can we get this listed as a <a href="https://stripe.com/docs/libraries#java">community library or plugin-in</a>?
- * </p>
- * <p>
- * TODO: Might be better to switch to <a href="https://stripe.com/docs/billing/subscriptions/payment">Subscriptions</a> for stored card implementation.
- * </p>
+ *
+ * <p>TODO: Support testMode with optional testApiKey.  This would require
+ * testMode on CreditCard, too.</p>
+ *
+ * <p>TODO: Support Stripe.js</p>
+ *
+ * <p>TODO: Support Idempotent Requests with automatic retry on network errors.</p>
+ *
+ * <p>TODO: Support <a href="https://stripe.com/docs/api/request_ids?lang=java">Request IDs</a>.</p>
+ *
+ * <p>TODO: Support <a href="https://stripe.com/docs/connect/direct-charges#collecting-fees">Collecting application fees</a>?</p>
+ *
+ * <p>TODO: Can we get this listed as a <a href="https://stripe.com/docs/libraries#java">community library or plugin-in</a>?</p>
+ *
+ * <p>TODO: Might be better to switch to <a href="https://stripe.com/docs/billing/subscriptions/payment">Subscriptions</a> for stored card implementation.</p>
  *
  * @author  AO Industries, Inc.
  */
@@ -133,10 +126,10 @@ public class Stripe implements MerchantServicesProvider {
   /**
    * Configures performing updates through the map-based interface.  A future version of the underlying API may be able to
    * fully use the builder API.
-   * <p>
-   * Currently, with Stripe API version 12.1.0, there is no way to unset a value through the builder-pattern API.
-   * Setting to {@code null} does not send any parameter.  Setting to {@code ""} results in the following error:
-   * </p>
+   *
+   * <p>Currently, with Stripe API version 12.1.0, there is no way to unset a value through the builder-pattern API.
+   * Setting to {@code null} does not send any parameter.  Setting to {@code ""} results in the following error:</p>
+   *
    * <blockquote>You cannot set 'description' to an empty string. We interpret empty strings as null in requests. You may set 'description' to null to delete the property.</blockquote>
    */
   private static final boolean UPDATE_WITH_MAP_API = true; // A future version of the Stripe API may allow this false, with removal of then-unused map-based code.
@@ -358,12 +351,10 @@ public class Stripe implements MerchantServicesProvider {
 
   /**
    * Creates the meta data for a customer.
-   * <p>
-   * See <a href="https://stripe.com/docs/api/metadata?lang=java">Metadata</a>.
-   * </p>
-   * <p>
-   * TODO: Review: <a href="https://stripe.com/docs/api/metadata?lang=java">Metadata</a>: "Do not store any sensitive information"
-   * </p>
+   *
+   * <p>See <a href="https://stripe.com/docs/api/metadata?lang=java">Metadata</a>.</p>
+   *
+   * <p>TODO: Review: <a href="https://stripe.com/docs/api/metadata?lang=java">Metadata</a>: "Do not store any sensitive information"</p>
    *
    * @param update  The parameters will always be added, even if null, to update an existing object
    */
@@ -387,9 +378,8 @@ public class Stripe implements MerchantServicesProvider {
    * <li>See <a href="https://stripe.com/docs/api/metadata?lang=java">Metadata</a>.</li>
    * <li>See <a href="https://stripe.com/docs/api/charges/create?lang=java">Create a charge</a>.</li>
    * </ol>
-   * <p>
-   * TODO: Review: <a href="https://stripe.com/docs/api/metadata?lang=java">Metadata</a>: "Do not store any sensitive information"
-   * </p>
+   *
+   * <p>TODO: Review: <a href="https://stripe.com/docs/api/metadata?lang=java">Metadata</a>: "Do not store any sensitive information"</p>
    */
   private static Map<String, String> makePaymentIntentMetadata(TransactionRequest transactionRequest, CreditCard creditCard, boolean update) {
     Map<String, String> metadata = makeCustomerMetadata(creditCard, update);
@@ -1908,9 +1898,8 @@ public class Stripe implements MerchantServicesProvider {
 
   /**
    * {@inheritDoc}
-   * <p>
-   * See <a href="https://stripe.com/docs/api/payment_intents/capture?lang=java">Capture a PaymentIntent</a>.
-   * </p>
+   *
+   * <p>See <a href="https://stripe.com/docs/api/payment_intents/capture?lang=java">Capture a PaymentIntent</a>.</p>
    */
   @Override
   public CaptureResult capture(AuthorizationResult authorizationResult) {
@@ -2301,9 +2290,8 @@ public class Stripe implements MerchantServicesProvider {
 
   /**
    * {@inheritDoc}
-   * <p>
-   * See <a href="https://stripe.com/docs/api/customers/delete?lang=java">Delete a customer</a>.
-   * </p>
+   *
+   * <p>See <a href="https://stripe.com/docs/api/customers/delete?lang=java">Delete a customer</a>.</p>
    */
   @Override
   public void deleteCreditCard(CreditCard creditCard) throws IOException {
@@ -2334,9 +2322,8 @@ public class Stripe implements MerchantServicesProvider {
 
   /**
    * {@inheritDoc}
-   * <p>
-   * See <a href="https://stripe.com/docs/api/customers/list?lang=java">List all customers</a>.
-   * </p>
+   *
+   * <p>See <a href="https://stripe.com/docs/api/customers/list?lang=java">List all customers</a>.</p>
    */
   @Override
   @SuppressWarnings("AssignmentToForLoopParameter")
