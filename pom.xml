@@ -262,7 +262,7 @@ along with ao-payments-stripe.  If not, see <https://www.gnu.org/licenses/>.
         <groupId>org.apache.commons</groupId><artifactId>commons-lang3</artifactId><version>3.18.0</version>
       </dependency>
       <dependency>
-        <groupId>com.stripe</groupId><artifactId>stripe-java</artifactId><version>29.4.0</version>
+        <groupId>com.stripe</groupId><artifactId>stripe-java</artifactId><version>29.5.0</version>
       </dependency>
       <!-- Transitive -->
       <dependency>
