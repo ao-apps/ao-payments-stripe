@@ -299,10 +299,10 @@ public class Stripe implements MerchantServicesProvider {
    * Adds a trimmed metadata value if the value is non-null and not empty after trimming.
    *
    * @param update  The parameter will always be added, even if null, to update an existing object
-   * @param allowTruncate  Truncate the value if its length is greater than {@link #MAX_METADATA_VALUE_LENGTH},
+   * @param allowTruncate  Truncate the value if its length is greater than {@link Stripe#MAX_METADATA_VALUE_LENGTH},
    *                       rather than throwing {@link IllegalArgumentException}.
    *
-   * @see  #addMetaData(boolean, java.util.Map, java.lang.String, java.lang.Object, boolean)
+   * @see  Stripe#addMetaData(boolean, java.util.Map, java.lang.String, java.lang.Object, boolean)
    */
   private static void addMetaData(boolean update, Map<String, String> metadata, String key, String value, boolean allowTruncate) {
     if (key.length() > MAX_METADATA_KEY_LENGTH) {
@@ -334,10 +334,10 @@ public class Stripe implements MerchantServicesProvider {
    * Adds a trimmed metadata value, via {@link Object#toString()}, if the value is non-null and not empty after trimming.
    *
    * @param update  The parameter will always be added, even if null, to update an existing object
-   * @param allowTruncate  Truncate the value if its length is greater than {@link #MAX_METADATA_VALUE_LENGTH},
+   * @param allowTruncate  Truncate the value if its length is greater than {@link Stripe#MAX_METADATA_VALUE_LENGTH},
    *                       rather than throwing {@link IllegalArgumentException}.
    *
-   * @see  #addMetaData(boolean, java.util.Map, java.lang.String, java.lang.String, boolean)
+   * @see  Stripe#addMetaData(boolean, java.util.Map, java.lang.String, java.lang.String, boolean)
    */
   private static void addMetaData(boolean update, Map<String, String> metadata, String key, Object value, boolean allowTrimValue) {
     addMetaData(
@@ -646,7 +646,7 @@ public class Stripe implements MerchantServicesProvider {
   }
 
   /**
-   * See {@link #makePaymentMethodParams(com.aoapps.payments.CreditCard, java.lang.String, byte, short, java.lang.String)}.
+   * See {@link Stripe#makePaymentMethodParams(com.aoapps.payments.CreditCard, java.lang.String, byte, short, java.lang.String)}.
    */
   private static PaymentMethodCreateParams makePaymentMethodParams(CreditCard creditCard) {
     return makePaymentMethodParams(
@@ -1567,8 +1567,8 @@ public class Stripe implements MerchantServicesProvider {
   }
 
   /**
-   * Implementation of {@link #sale(com.aoapps.payments.TransactionRequest, com.aoapps.payments.CreditCard)}
-   * and {@link #authorize(com.aoapps.payments.TransactionRequest, com.aoapps.payments.CreditCard)}.
+   * Implementation of {@link Stripe#sale(com.aoapps.payments.TransactionRequest, com.aoapps.payments.CreditCard)}
+   * and {@link Stripe#authorize(com.aoapps.payments.TransactionRequest, com.aoapps.payments.CreditCard)}.
    * <ol>
    * <li>See <a href="https://stripe.com/docs/api/payment_intents/create?lang=java">Create a PaymentIntent</a>.</li>
    * <li>See <a href="https://stripe.com/docs/api/payment_intents/confirm?lang=java">Confirm a PaymentIntent</a>.</li>
