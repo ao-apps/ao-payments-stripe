@@ -1,6 +1,6 @@
 /*
  * ao-payments-stripe - Provider for Stripe.
- * Copyright (C) 2021, 2022  AO Industries, Inc.
+ * Copyright (C) 2021, 2022, 2026  AO Industries, Inc.
  *     support@aoindustries.com
  *     7262 Bull Pen Cir
  *     Mobile, AL 36695
@@ -27,7 +27,7 @@ module com.aoapps.payments.stripe {
   requires com.aoapps.lang; // <groupId>com.aoapps</groupId><artifactId>ao-lang</artifactId>
   requires com.aoapps.payments.api; // <groupId>com.aoapps</groupId><artifactId>ao-payments-api</artifactId>
   requires org.apache.commons.lang3; // <groupId>org.apache.commons</groupId><artifactId>commons-lang3</artifactId>
-  requires stripe.java; // <groupId>com.stripe</groupId><artifactId>stripe-java</artifactId>
+  requires com.stripe; // <groupId>com.stripe</groupId><artifactId>stripe-java</artifactId>
   // Java SE
   requires java.logging;
 }
