@@ -21,7 +21,6 @@
  * along with ao-payments-stripe.  If not, see <https://www.gnu.org/licenses/>.
  */
 module com.aoapps.payments.stripe {
-  exports com.aoapps.payments.stripe;
   // Direct
   requires com.aoapps.collections; // <groupId>com.aoapps</groupId><artifactId>ao-collections</artifactId>
   requires com.aoapps.lang; // <groupId>com.aoapps</groupId><artifactId>ao-lang</artifactId>
@@ -30,4 +29,6 @@ module com.aoapps.payments.stripe {
   requires com.stripe; // <groupId>com.stripe</groupId><artifactId>stripe-java</artifactId>
   // Java SE
   requires java.logging;
+
+  exports com.aoapps.payments.stripe;
 }
